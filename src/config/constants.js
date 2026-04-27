@@ -1,7 +1,5 @@
 import * as THREE from 'three';
 
-export const ENEMY_PREVIEW_WIDTH = 188;
-export const ENEMY_PREVIEW_HEIGHT = 128;
 export const FIRE_SUN_BLOOM_STRENGTH = 1.15;
 export const FIRE_SUN_BLOOM_RADIUS = 0.68;
 export const FIRE_SUN_BLOOM_THRESHOLD = 0.58;

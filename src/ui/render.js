@@ -51,8 +51,8 @@ export function syncScreenVisibility(ui, { startScreenOpen, menuSceneViewOpen, s
     gameState === 'cutscene' ||
     gameState === 'upgrading' ||
     gameState === 'gameover';
-  ui.startScreen.hidden = !startScreenOpen;
-  ui.menuSceneViewButton.hidden = !menuSceneViewOpen;
+  ui.startScreen.hidden = true;
+  ui.menuSceneViewButton.hidden = true;
   ui.menuSceneHero.hidden = true;
   ui.menuSceneCameraPanel.hidden = true;
   ui.hud.hidden = startScreenOpen || menuSceneViewOpen || overlayGameplayState;
@@ -132,13 +132,19 @@ export function updateStartScreenSelectionUi(
     startScreenPreviewSceneKey
   }
 ) {
+  if (!ui.startSummaryLevelEl || !ui.startSummarySceneEl || !ui.startSummaryPreviewEl) {
+    return;
+  }
+
   const levelConfig = enemyLevels[selectedStartLevelIndex];
   ui.startSummaryLevelEl.textContent =
     `${levelConfig.label} · ${levelConfig.enemies?.length ?? 3} ${levelConfig.enemyPluralLabel}`;
   ui.startSummarySceneEl.textContent = playableWorldScenes[selectedStartSceneKey]?.label ?? selectedStartSceneKey;
   ui.startSummaryPreviewEl.textContent =
     `Preview · ${worldScenes[startScreenPreviewSceneKey]?.label ?? startScreenPreviewSceneKey}`;
-  ui.startMenuSceneButton.textContent = 'View Menu Scene 2';
+  if (ui.startMenuSceneButton) {
+    ui.startMenuSceneButton.textContent = 'View Menu Scene 2';
+  }
 
   for (const button of ui.startTabButtons) {
     button.classList.toggle('is-active', button.dataset.startTab === startScreenTab);
@@ -160,7 +166,7 @@ export function updateLoaderScreen(ui, { title, hint, loaded, total }) {
   ui.loaderTitleEl.textContent = title;
   ui.loaderHintEl.textContent = hint;
   ui.loaderFillEl.style.width = `${progress * 100}%`;
-  ui.loaderProgressEl.textContent = `${Math.min(loaded, total)} / ${total}`;
+  ui.loaderProgressEl.textContent = 'Loading';
   ui.loaderPercentEl.textContent = `${Math.round(progress * 100)}%`;
 }
 

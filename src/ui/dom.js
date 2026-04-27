@@ -36,7 +36,6 @@ const UI_STYLE = `
   body {
     user-select: none;
     font-family: inherit;
-    cursor: none;
   }
 
   button,
@@ -44,45 +43,7 @@ const UI_STYLE = `
   select,
   textarea {
     font: inherit;
-    cursor: none;
-  }
-
-  * {
-    cursor: none !important;
-  }
-
-  .custom-cursor {
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: 18px;
-    height: 18px;
-    z-index: 9999;
-    pointer-events: none;
-    background: #ffffff;
-    image-rendering: pixelated;
-    transform: translate(-50%, -50%);
-    transform-origin: center;
-    will-change: left, top, transform;
-  }
-
-  .custom-cursor.is-hidden {
-    opacity: 0;
-  }
-
-  .custom-cursor.is-hovering-active {
-    animation: customCursorPulse 1.9s ease-in-out infinite;
-  }
-
-  @keyframes customCursorPulse {
-    0%,
-    100% {
-      transform: translate(-50%, -50%) scale(1);
-    }
-
-    50% {
-      transform: translate(-50%, -50%) scale(1.2);
-    }
+    cursor: auto;
   }
 
   .hud {
@@ -419,10 +380,8 @@ const UI_STYLE = `
     inset: 0;
     display: grid;
     place-items: center;
-    background:
-      radial-gradient(circle at top, rgba(35, 62, 92, 0.22), transparent 48%),
-      linear-gradient(180deg, rgba(2, 6, 10, 0.96), rgba(5, 9, 14, 0.98));
-    color: #edf8ff;
+    background: #000;
+    color: #07d4ff;
     z-index: 42;
   }
 
@@ -431,62 +390,57 @@ const UI_STYLE = `
   }
 
   .loader-screen__card {
-    width: min(90vw, 420px);
-    padding: 28px 26px 24px;
-    border: 1px solid rgba(179, 226, 255, 0.16);
-    border-radius: 24px;
-    background: rgba(8, 15, 23, 0.86);
-    box-shadow: 0 22px 80px rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(16px);
+    width: min(72vw, 520px);
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
   }
 
   .loader-screen__eyebrow {
-    display: inline-block;
-    margin-bottom: 14px;
-    font-size: 11px;
-    letter-spacing: 0.28em;
-    text-transform: uppercase;
-    color: rgba(191, 231, 255, 0.72);
+    display: none;
   }
 
   .loader-screen__title {
-    margin: 0 0 10px;
-    font-size: 28px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    display: none;
   }
 
   .loader-screen__hint {
-    margin: 0 0 18px;
-    color: rgba(223, 243, 255, 0.72);
-    font-size: 14px;
-    line-height: 1.5;
+    display: none;
   }
 
   .loader-screen__bar {
-    height: 12px;
-    border-radius: 999px;
+    height: 26px;
+    border: 4px solid #07d4ff;
+    border-radius: 0;
     overflow: hidden;
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(7, 212, 255, 0.12);
   }
 
   .loader-screen__fill {
     width: 0%;
     height: 100%;
-    border-radius: inherit;
-    background: linear-gradient(90deg, #5fd7ff, #c0f4ff);
-    box-shadow: 0 0 28px rgba(130, 236, 255, 0.36);
+    border-radius: 0;
+    background: #07d4ff;
+    box-shadow: none;
     transition: width 0.2s ease;
   }
 
   .loader-screen__progress {
+    position: fixed;
+    left: 50%;
+    bottom: 34px;
     display: flex;
-    justify-content: space-between;
-    margin-top: 12px;
-    font-size: 12px;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 0;
+    font-size: 24px;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: rgba(207, 240, 255, 0.68);
+    color: #07d4ff;
+    transform: translateX(-50%);
   }
 
   .scene-button {
@@ -1609,8 +1563,8 @@ const UI_STYLE = `
   }
 
   .pause-menu__card {
-    width: min(92vw, 420px);
-    padding: 24px 22px 18px;
+    width: min(92vw, 520px);
+    padding: 48px 44px 36px;
     border: 0;
     border-radius: 0;
     background: rgba(0, 0, 0, 0.74);
@@ -2090,54 +2044,13 @@ export function createUi({
   const startScreen = document.createElement('div');
   startScreen.className = 'start-screen';
   startScreen.hidden = true;
-  startScreen.innerHTML = `
-    <div class="start-screen__card">
-      <div class="start-screen__tabs">
-        <button class="start-screen__tab is-active" type="button" data-start-tab="campaign">Run Setup</button>
-        <button class="start-screen__tab" type="button" data-start-tab="menu">Menu Scene 2</button>
-      </div>
-      <span class="start-screen__eyebrow">Campaign</span>
-      <h1 class="start-screen__title">Enemy Rush</h1>
-      <p class="start-screen__subtitle">
-        Choose the arena, pick the starting level, and preview every enemy wave before the run begins.
-      </p>
-      <div class="start-screen__summary">
-        <span class="start-screen__summary-chip" data-start-summary-level>Level 1</span>
-        <span class="start-screen__summary-chip" data-start-summary-scene>${worldScenes[defaultSceneKey].label}</span>
-        <span class="start-screen__summary-chip" data-start-summary-preview>Preview · ${worldScenes[defaultSceneKey].label}</span>
-      </div>
-      <div class="start-screen__layout">
-        <section>
-          <h2 class="start-screen__section-title">Scene Select</h2>
-          <div class="start-screen__scene-grid">
-            ${renderStartScreenSceneOptions(playableWorldSceneEntries, defaultSceneKey)}
-          </div>
-        </section>
-        <section>
-          <h2 class="start-screen__section-title">Level Select</h2>
-          <div class="start-screen__level-grid">
-            ${renderStartLevelCards(enemyLevels, defaultLevelIndex)}
-          </div>
-        </section>
-      </div>
-      <div class="start-screen__actions">
-        <p class="start-screen__action-copy">
-          Start directly on the selected wave. The next button advances through the remaining enemy types in the same arena.
-        </p>
-        <div class="start-screen__action-buttons">
-          <button class="start-screen__secondary-button" type="button" data-start-action="show-menu-scene-two">View Menu Scene 2</button>
-          <button class="start-screen__start-button" type="button" data-start-action="start">Start Run</button>
-        </div>
-      </div>
-    </div>
-  `;
   document.body.append(startScreen);
 
   const menuSceneViewButton = document.createElement('button');
   menuSceneViewButton.className = 'menu-scene-view-button';
   menuSceneViewButton.type = 'button';
   menuSceneViewButton.hidden = true;
-  menuSceneViewButton.textContent = 'Back to Start';
+  menuSceneViewButton.textContent = '';
   document.body.append(menuSceneViewButton);
 
   const menuSceneHero = document.createElement('div');
@@ -2149,7 +2062,7 @@ export function createUi({
       <button class="menu-scene-hero__play ui-pixel-button ui-pixel-button--yellow" type="button" data-menu-scene-play>Play</button>
       <div class="menu-scene-hero__secondary-actions">
         <button class="ui-pixel-button ui-pixel-button--blue" type="button" data-menu-scene-controls>Controls</button>
-        <button class="ui-pixel-button ui-pixel-button--gray" type="button" data-audio-toggle>Music/SFX Off</button>
+        <button class="ui-pixel-button ui-pixel-button--gray" type="button" data-audio-toggle>Music/SFX On</button>
       </div>
     </div>
   `;
@@ -2158,10 +2071,6 @@ export function createUi({
   const screenFade = document.createElement('div');
   screenFade.className = 'screen-fade';
   document.body.append(screenFade);
-
-  const customCursor = document.createElement('div');
-  customCursor.className = 'custom-cursor is-hidden';
-  document.body.append(customCursor);
 
   const cutsceneScreen = document.createElement('div');
   cutsceneScreen.className = 'cutscene-screen';
@@ -2367,7 +2276,6 @@ export function createUi({
     menuSceneControlsButton: menuSceneHero.querySelector('[data-menu-scene-controls]'),
     audioToggleButton: menuSceneHero.querySelector('[data-audio-toggle]'),
     screenFade,
-    customCursor,
     cutsceneScreen,
     cutsceneTitleEl: cutsceneScreen.querySelector('[data-cutscene-title]'),
     cutsceneTextEl: cutsceneScreen.querySelector('[data-cutscene-text]'),

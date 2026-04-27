@@ -7,7 +7,7 @@ const tempAimPoint = new THREE.Vector3();
 
 export function createCombatFxResources() {
   return {
-    bulletGeometry: new THREE.BoxGeometry(0.08, 0.08, 0.18),
+    bulletGeometry: new THREE.BoxGeometry(0.1, 0.1, 0.1),
     bulletMaterial: new THREE.MeshStandardMaterial({
       color: 0x97f7ff,
       emissive: 0x48dcff,

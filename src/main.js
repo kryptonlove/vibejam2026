@@ -7,13 +7,18 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import {
   blockMossXsUrl,
+  decorationUiUrl,
   enemyExplosionSfxUrl,
   enemyHitSfxUrl,
   gateUrl,
   groundMossMdUrl,
   groundMossXsUrl,
+  heartUiUrl,
+  lineUiUrl,
+  logoUiUrl,
   menuMusicUrl,
   mossXlUrl,
+  pauseUiUrl,
   pillarSquareUrl,
   pistolEmptySfxUrl,
   pistolSfxUrl,
@@ -23,6 +28,7 @@ import {
   playerHitSfxUrl,
   playerTextureUrl as characterTextureUrl,
   playerUrl as characterUrl,
+  roundCornersMusicUrl,
   skullCrackedUrl,
   stairsXlUrl,
   teleportOpenSfxUrl,
@@ -55,8 +61,6 @@ import {
   ELECTRIC_BALL_BLOOM_RADIUS,
   ELECTRIC_BALL_BLOOM_STRENGTH,
   ELECTRIC_BALL_BLOOM_THRESHOLD,
-  ENEMY_PREVIEW_HEIGHT,
-  ENEMY_PREVIEW_WIDTH,
   EXAMPLE_SKY,
   EXPLOSION_DURATION,
   EXPLOSION_PARTICLE_COUNT,
@@ -238,7 +242,6 @@ const {
   sceneSelector,
   sceneToggleButton,
   screenFade,
-  startPreviewHosts,
   startScreen,
   statusOverlay,
   audioToggleButton,
@@ -247,7 +250,6 @@ const {
   controlsPopup,
   controlsScenesEl,
   controlsSummaryEl,
-  customCursor,
   cutsceneScreen,
   cutsceneTitleEl,
   cutsceneTextEl,
@@ -619,7 +621,7 @@ function startCutsceneTypewriter(target, segments, onComplete) {
   };
 }
 
-function showCutscene(levelConfig, { beforeTypewriter = null } = {}) {
+function showCutscene(levelConfig, { beforeTypewriter = null, onContinue = null } = {}) {
   return new Promise((resolve) => {
     const segments = normalizeCutsceneSegments(levelConfig.cutsceneText);
     let typewriterComplete = false;
@@ -638,6 +640,7 @@ function showCutscene(levelConfig, { beforeTypewriter = null } = {}) {
         return;
       }
 
+      onContinue?.();
       cutsceneScreen.removeEventListener('click', continueCutscene);
       stopTypewriter?.();
       resolved = true;
@@ -697,83 +700,6 @@ function showUpgradeScreen(upgradeIds, { hideOnFinish = true } = {}) {
 
 function hideSpikedEnemies() {
   activeEnemyHudTarget = hideSpikedEnemiesEnemies(spikedEnemies);
-}
-
-function initEnemyPreviewEntries() {
-  if (enemyPreviewEntries.length > 0) {
-    return;
-  }
-
-  for (const [index, host] of startPreviewHosts.entries()) {
-    const levelConfig = ENEMY_LEVELS[index];
-    const template = enemyTemplates[levelConfig.enemyKey];
-    if (!host || !template) {
-      continue;
-    }
-
-    const previewRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    previewRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-    previewRenderer.setSize(ENEMY_PREVIEW_WIDTH, ENEMY_PREVIEW_HEIGHT, false);
-    previewRenderer.outputColorSpace = THREE.SRGBColorSpace;
-    previewRenderer.setClearColor(0x000000, 0);
-    previewRenderer.domElement.style.width = '100%';
-    previewRenderer.domElement.style.height = `${ENEMY_PREVIEW_HEIGHT}px`;
-    previewRenderer.domElement.style.pointerEvents = 'none';
-
-    const previewScene = new THREE.Scene();
-    const previewCamera = new THREE.PerspectiveCamera(34, ENEMY_PREVIEW_WIDTH / ENEMY_PREVIEW_HEIGHT, 0.1, 20);
-    previewCamera.position.set(0, 0.35, 3.7);
-    previewCamera.lookAt(0, 0.12, 0);
-
-    previewScene.add(new THREE.HemisphereLight(0x9bdcff, 0x0a1018, 1.25));
-    const previewKeyLight = new THREE.DirectionalLight(0xfff2d8, 1.5);
-    previewKeyLight.position.set(2.4, 3.8, 2.2);
-    previewScene.add(previewKeyLight);
-    const previewRimLight = new THREE.DirectionalLight(0x78d4ff, 0.55);
-    previewRimLight.position.set(-2.6, 1.6, -1.8);
-    previewScene.add(previewRimLight);
-
-    const floor = new THREE.Mesh(
-      new THREE.CircleGeometry(1.55, 48),
-      new THREE.MeshBasicMaterial({ color: 0x061019, transparent: true, opacity: 0.7 })
-    );
-    floor.rotation.x = -Math.PI * 0.5;
-    floor.position.y = -0.9;
-    previewScene.add(floor);
-
-    const root = new THREE.Group();
-    const model = template.clone(true);
-    configureEnemyRuntimeVisual(model, levelConfig.enemyKey);
-    root.add(model);
-    previewScene.add(root);
-
-    host.replaceChildren(previewRenderer.domElement);
-    enemyPreviewEntries.push({
-      renderer: previewRenderer,
-      scene: previewScene,
-      camera: previewCamera,
-      root,
-      model,
-      enemyKey: levelConfig.enemyKey,
-      lastTime: 0,
-      phase: index * 0.9
-    });
-  }
-}
-
-function renderEnemyPreviewEntries(time) {
-  if (!startScreenOpen) {
-    return;
-  }
-
-  for (const previewEntry of enemyPreviewEntries) {
-    const deltaTime = previewEntry.lastTime > 0 ? Math.min(0.05, time - previewEntry.lastTime) : 0.016;
-    previewEntry.lastTime = time;
-    previewEntry.root.rotation.y = time * 0.85 + previewEntry.phase;
-    previewEntry.root.position.y = Math.sin(time * 1.6 + previewEntry.phase) * 0.06;
-    updateEnemyRuntimeVisual(previewEntry.model, previewEntry.enemyKey, time, deltaTime);
-    previewEntry.renderer.render(previewEntry.scene, previewEntry.camera);
-  }
 }
 
 function setStartScreenOpen(open) {
@@ -958,6 +884,25 @@ function playHtmlAudio(audio, { restart = true } = {}) {
   }
 }
 
+function loadImageAsset(url) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error(`Failed to preload image: ${url}`));
+    image.src = url;
+  });
+}
+
+function loadBinaryAsset(url) {
+  return fetch(url, { cache: 'force-cache' }).then((response) => {
+    if (!response.ok) {
+      throw new Error(`Failed to preload asset: ${url}`);
+    }
+
+    return response.arrayBuffer();
+  });
+}
+
 function updateAudioToggleLabel() {
   audioToggleButton.textContent = audioEnabled ? 'Music/SFX On' : 'Music/SFX Off';
 }
@@ -979,7 +924,9 @@ function syncAudioMuteState() {
     typewriterSfxAudio,
     winMusicAudio,
     levelMusicAudio,
-    fadingLevelMusicAudio
+    fadingLevelMusicAudio,
+    activeUiHoverSfxAudio,
+    ...levelSoundtrackAudioCache.values()
   ]) {
     if (audio) {
       audio.muted = !audioEnabled;
@@ -1043,6 +990,30 @@ function stopLevelSoundtrack() {
   fadingLevelMusicAudio = null;
 }
 
+function getLevelSoundtrackAudio(url) {
+  if (!url) {
+    return null;
+  }
+
+  let audio = levelSoundtrackAudioCache.get(url);
+  if (!audio) {
+    audio = new Audio(url);
+    audio.loop = true;
+    audio.preload = 'auto';
+    audio.volume = LEVEL_MUSIC_VOLUME;
+    levelSoundtrackAudioCache.set(url, audio);
+  }
+
+  return audio;
+}
+
+function fadeOutMenuMusic(duration = 1000) {
+  fadeAudioVolume(menuMusicAudio, 0, duration, {
+    stopWhenSilent: true,
+    resetVolume: MENU_MUSIC_VOLUME
+  });
+}
+
 function fadeOutLevelSoundtrack(duration = 1300) {
   const audio = levelMusicAudio;
   levelMusicAudio = null;
@@ -1082,9 +1053,11 @@ function startLevelSoundtrack() {
     return;
   }
 
-  levelMusicAudio = new Audio(currentLevelConfig.soundtrack);
-  levelMusicAudio.loop = true;
-  levelMusicAudio.preload = 'auto';
+  levelMusicAudio = getLevelSoundtrackAudio(currentLevelConfig.soundtrack);
+  if (!levelMusicAudio) {
+    return;
+  }
+
   levelMusicAudio.volume = LEVEL_MUSIC_VOLUME;
   syncAudioMuteState();
   playHtmlAudio(levelMusicAudio);
@@ -1164,29 +1137,35 @@ function playPortalOpenSequence() {
 }
 
 function playUiHoverSfx() {
-  playHtmlAudio(uiHoverSfxAudio);
-}
+  if (!audioEnabled) {
+    return;
+  }
 
-const ACTIVE_CURSOR_SELECTOR = [
-  'button:not(:disabled)',
-  'a[href]',
-  'input:not(:disabled)',
-  'select:not(:disabled)',
-  'textarea:not(:disabled)',
-  '[role="button"]:not([aria-disabled="true"])'
-].join(',');
+  if (activeUiHoverSfxAudio && !activeUiHoverSfxAudio.paused) {
+    const previousAudio = activeUiHoverSfxAudio;
+    fadeAudioVolume(previousAudio, 0, 90, {
+      stopWhenSilent: true,
+      resetVolume: UI_HOVER_SFX_VOLUME,
+      onComplete: () => {
+        if (activeUiHoverSfxAudio === previousAudio) {
+          activeUiHoverSfxAudio = null;
+        }
+      }
+    });
+  }
 
-function setCustomCursorPosition(event) {
-  customCursor.style.left = `${event.clientX}px`;
-  customCursor.style.top = `${event.clientY}px`;
-  customCursor.classList.toggle('is-hidden', document.pointerLockElement === renderer.domElement);
-}
-
-function setCustomCursorTarget(target) {
-  customCursor.classList.toggle(
-    'is-hovering-active',
-    Boolean(target?.closest?.(ACTIVE_CURSOR_SELECTOR))
-  );
+  const nextAudio = new Audio(uiSfxUrl);
+  nextAudio.preload = 'auto';
+  nextAudio.volume = UI_HOVER_SFX_VOLUME * 0.25;
+  nextAudio.muted = !audioEnabled;
+  activeUiHoverSfxAudio = nextAudio;
+  nextAudio.addEventListener('ended', () => {
+    if (activeUiHoverSfxAudio === nextAudio) {
+      activeUiHoverSfxAudio = null;
+    }
+  }, { once: true });
+  playHtmlAudio(nextAudio, { restart: false });
+  fadeAudioVolume(nextAudio, UI_HOVER_SFX_VOLUME, 55);
 }
 
 function playCutsceneTypewriterSfx() {
@@ -1199,6 +1178,9 @@ function stopCutsceneTypewriterSfx() {
 
 function toggleAudioEnabled() {
   audioEnabled = !audioEnabled;
+  if (audioEnabled) {
+    audioInteractionUnlocked = true;
+  }
   syncAudioMuteState();
   updateAudioToggleLabel();
 
@@ -1206,6 +1188,8 @@ function toggleAudioEnabled() {
     stopHtmlAudio(menuMusicAudio);
     stopHtmlAudio(thunderstormOneAudio);
     stopHtmlAudio(thunderstormTwoAudio);
+    stopHtmlAudio(activeUiHoverSfxAudio);
+    activeUiHoverSfxAudio = null;
     stopCutsceneTypewriterSfx();
     stopLevelSoundtrack();
     stopWinMusic();
@@ -1218,6 +1202,18 @@ function toggleAudioEnabled() {
     startWinMusic();
   } else if (gameState === 'playing') {
     startLevelSoundtrack();
+  }
+}
+
+function unlockAudioOnUserGesture() {
+  if (!audioEnabled || audioInteractionUnlocked) {
+    return;
+  }
+
+  audioInteractionUnlocked = true;
+
+  if (menuSceneViewOpen && usesMenuSceneExperience()) {
+    playHtmlAudio(menuMusicAudio, { restart: false });
   }
 }
 
@@ -1239,6 +1235,7 @@ function triggerMenuStormFlash(strength = 1) {
 }
 
 function startMenuSceneExperience() {
+  menuMusicAudio.volume = MENU_MUSIC_VOLUME;
   playHtmlAudio(menuMusicAudio);
   stopHtmlAudio(thunderstormOneAudio);
   stopHtmlAudio(thunderstormTwoAudio);
@@ -1252,7 +1249,7 @@ function startMenuSceneExperience() {
   triggerMenuStormFlash(1);
 }
 
-function stopMenuSceneExperience() {
+function stopMenuSceneExperience({ keepMusic = false } = {}) {
   menuSceneStormState.active = false;
   menuSceneStormState.sequenceTime = 0;
   menuSceneStormState.playedThunderOne = false;
@@ -1263,7 +1260,9 @@ function stopMenuSceneExperience() {
   menuStormLight.intensity = 0;
   menuStormOverlay.style.opacity = '0';
   menuStormOverlay.hidden = true;
-  stopHtmlAudio(menuMusicAudio);
+  if (!keepMusic) {
+    stopHtmlAudio(menuMusicAudio);
+  }
   stopHtmlAudio(thunderstormOneAudio);
   stopHtmlAudio(thunderstormTwoAudio);
 }
@@ -1523,7 +1522,7 @@ let startScreenOpen = false;
 let menuSceneViewOpen = false;
 let playerOnFloor = false;
 let hp = 3;
-let ammo = 5;
+let ammo = 8;
 let yaw = 0;
 let pitch = DEFAULT_GAMEPLAY_PITCH;
 let triggerHeld = false;
@@ -1566,7 +1565,8 @@ let portalTransitionActive = false;
 let portalAudioSequenceId = 0;
 let deathScreenTimer = 0;
 let shockwaveCooldownTimer = 0;
-let audioEnabled = false;
+let audioEnabled = true;
+let audioInteractionUnlocked = false;
 
 const loaderState = {
   total: 0,
@@ -1578,16 +1578,17 @@ const WEAPON_MAGAZINE_CAP = 10;
 const LEVEL_MUSIC_VOLUME = 0.52;
 const WIN_MUSIC_VOLUME = 0.48;
 const UI_SFX_VOLUME = 0.21;
+const UI_HOVER_SFX_VOLUME = UI_SFX_VOLUME * 0.6;
 const EMPTY_SHOT_INTERVAL = 0.36;
 const BASE_PLAYER_STATS = {
   maxHP: 3,
   maxWalkSpeed: WALK_ACCELERATION,
-  running: 0.15,
+  running: 1.3,
   jump: JUMP_VELOCITY
 };
 const BASE_WEAPON_STATS = {
   damage: 20,
-  magazine: 5,
+  magazine: 8,
   fireRate: 0.5,
   reloadSpeed: 1 / 1.5
 };
@@ -1638,7 +1639,7 @@ teleportationSfxAudio.volume = 0.62;
 
 const uiHoverSfxAudio = new Audio(uiSfxUrl);
 uiHoverSfxAudio.preload = 'auto';
-uiHoverSfxAudio.volume = UI_SFX_VOLUME;
+uiHoverSfxAudio.volume = UI_HOVER_SFX_VOLUME;
 
 const typewriterSfxAudio = new Audio(typewriterSfxUrl);
 typewriterSfxAudio.loop = true;
@@ -1652,6 +1653,8 @@ winMusicAudio.volume = WIN_MUSIC_VOLUME;
 
 let levelMusicAudio = null;
 let fadingLevelMusicAudio = null;
+let activeUiHoverSfxAudio = null;
+const levelSoundtrackAudioCache = new Map();
 
 const thunderstormOneAudio = new Audio(thunderstormOneUrl);
 thunderstormOneAudio.preload = 'auto';
@@ -1660,6 +1663,58 @@ thunderstormOneAudio.volume = MENU_THUNDER_ONE_VOLUME;
 const thunderstormTwoAudio = new Audio(thunderstormTwoUrl);
 thunderstormTwoAudio.preload = 'auto';
 thunderstormTwoAudio.volume = MENU_THUNDER_TWO_VOLUME;
+
+const AUDIO_PRELOAD_URLS = Array.from(new Set([
+  menuMusicUrl,
+  pistolSfxUrl,
+  pistolEmptySfxUrl,
+  enemyHitSfxUrl,
+  enemyExplosionSfxUrl,
+  playerHitSfxUrl,
+  playerDeathSfxUrl,
+  teleportOpenSfxUrl,
+  teleportationSfxUrl,
+  thunderstormOneUrl,
+  thunderstormTwoUrl,
+  typewriterSfxUrl,
+  uiSfxUrl,
+  winMusicUrl,
+  roundCornersMusicUrl,
+  ...ENEMY_LEVELS.map((levelConfig) => levelConfig.soundtrack).filter(Boolean)
+]));
+
+const UI_IMAGE_PRELOAD_URLS = [
+  decorationUiUrl,
+  heartUiUrl,
+  lineUiUrl,
+  logoUiUrl,
+  pauseUiUrl
+];
+
+for (const soundtrackUrl of ENEMY_LEVELS.map((levelConfig) => levelConfig.soundtrack).filter(Boolean)) {
+  getLevelSoundtrackAudio(soundtrackUrl);
+}
+
+for (const audio of [
+  menuMusicAudio,
+  pistolSfxAudio,
+  pistolEmptySfxAudio,
+  enemyHitSfxAudio,
+  enemyExplosionSfxAudio,
+  playerHitSfxAudio,
+  playerDeathSfxAudio,
+  teleportOpenSfxAudio,
+  teleportationSfxAudio,
+  thunderstormOneAudio,
+  thunderstormTwoAudio,
+  uiHoverSfxAudio,
+  typewriterSfxAudio,
+  winMusicAudio,
+  ...levelSoundtrackAudioCache.values()
+]) {
+  audio.load();
+}
+
 syncAudioMuteState();
 
 const loadedWorldTemplates = {};
@@ -1676,7 +1731,6 @@ const menuSceneStormState = {
   flashStrength: 0,
   phase: 0
 };
-const enemyPreviewEntries = [];
 let spikedEnemyVisualRadius = SPIKED_ENEMY_TARGET_DIAMETER * 0.5;
 let activeEnemyHudTarget = null;
 const explosionEffects = [];
@@ -1880,7 +1934,7 @@ function refreshHudMessage() {
 
   if (menuSceneViewOpen) {
     setHudMessage(
-      'Menu scene view.<br /><span class="hud__hint">Use Back to Start to return to the campaign setup screen.</span>'
+      'Menu scene view.<br /><span class="hud__hint">Press Play to start, Controls to change level setup, or Music/SFX to toggle audio.</span>'
     );
     return;
   }
@@ -1894,7 +1948,7 @@ function refreshHudMessage() {
 
   if (startScreenOpen) {
     setHudMessage(
-      'Choose a scene and starting wave.<br /><span class="hud__hint">The run will begin after you press Start Run.</span>'
+      'Choose a scene and starting wave.<br /><span class="hud__hint">The run starts from the main menu Play button.</span>'
     );
     return;
   }
@@ -3321,6 +3375,7 @@ async function startCampaignLevel(levelIndex) {
     return;
   }
 
+  const keepMenuMusicThroughCutscene = menuSceneViewOpen && usesMenuSceneExperience();
   gameState = 'transition';
   portalAudioSequenceId += 1;
   clearInputState();
@@ -3335,7 +3390,7 @@ async function startCampaignLevel(levelIndex) {
   upgradeScreen.hidden = true;
   cutsceneScreen.hidden = true;
   hideStatusOverlay();
-  stopMenuSceneExperience();
+  stopMenuSceneExperience({ keepMusic: keepMenuMusicThroughCutscene });
   stopLevelSoundtrack();
   stopWinMusic();
   startScreenOpen = false;
@@ -3358,7 +3413,13 @@ async function startCampaignLevel(levelIndex) {
   hideLoaderScreen();
   gameState = 'cutscene';
   syncScreenVisibility();
-  await showCutscene(currentLevelConfig, { beforeTypewriter: () => fadeFromBlack() });
+  await showCutscene(currentLevelConfig, {
+    beforeTypewriter: () => fadeFromBlack(),
+    onContinue: requestGamePointerLock
+  });
+  if (keepMenuMusicThroughCutscene) {
+    fadeOutMenuMusic();
+  }
   await fadeToBlack();
   cutsceneScreen.hidden = true;
   gameState = 'playing';
@@ -3375,6 +3436,45 @@ function requestGamePointerLock() {
       lockPromise.catch(() => {});
     }
   }
+}
+
+async function retryCurrentLevel() {
+  if (!sceneReady) {
+    return;
+  }
+
+  gameState = 'transition';
+  portalAudioSequenceId += 1;
+  clearInputState();
+  triggerHeld = false;
+  await fadeToBlack();
+
+  setControlsPopupOpen(false);
+  upgradeScreen.hidden = true;
+  cutsceneScreen.hidden = true;
+  hideStatusOverlay();
+  stopMenuSceneExperience();
+  stopLevelSoundtrack();
+  stopWinMusic();
+  startScreenOpen = false;
+  menuSceneViewOpen = false;
+  menuSceneCameraOverrideEnabled = false;
+  syncScreenVisibility();
+
+  applyCurrentLevelConfig(currentLevelIndex);
+  campaignSceneKey = currentLevelConfig.sceneKey ?? selectedStartSceneKey;
+
+  if (activeSceneKey !== campaignSceneKey) {
+    applyWorldScene(campaignSceneKey, { startPlaying: false });
+  } else {
+    restartGame({ startPlaying: false });
+  }
+
+  gameState = 'playing';
+  syncScreenVisibility();
+  startLevelSoundtrack();
+  await fadeFromBlack();
+  requestGamePointerLock();
 }
 
 function completeLevel() {
@@ -4596,20 +4696,20 @@ function applyWorldScene(sceneKey, { restartPlayer = true, startPlaying = true }
 
 async function init() {
   try {
-    loaderState.total = 23;
+    loaderState.total = 23 + AUDIO_PRELOAD_URLS.length + UI_IMAGE_PRELOAD_URLS.length;
     loaderState.loaded = 0;
     showLoaderScreen(
       'Loading Assets',
-      'Preparing the demo arena, enemy test arena, menu scene 2, all six enemy levels, character rigs, weapon, and textures.'
+      'Preloading all models, textures, UI images, sounds, and music.'
     );
     updateLoaderScreen(
       'Loading Assets',
-      'Preparing the demo arena, enemy test arena, menu scene 2, all six enemy levels, character rigs, weapon, and textures.',
+      'Preloading all models, textures, UI images, sounds, and music.',
       0,
       loaderState.total
     );
     loadingEl.style.display = 'block';
-    loadingEl.textContent = 'Loading enemy test, demo, menu scene 2, all enemy levels, character rigs, and weapon...';
+    loadingEl.textContent = 'Loading all game assets...';
     refreshHudMessage();
 
     const [
@@ -4659,7 +4759,13 @@ async function init() {
       loadTracked('Character rig', () => loadFBX(characterUrl)),
       loadTracked('Pistol', () => loadFBX(pistolUrl)),
       loadTracked('Character texture', () => loadTexture(characterTextureUrl)),
-      loadTracked('Pistol texture', () => loadTexture(pistolTextureUrl))
+      loadTracked('Pistol texture', () => loadTexture(pistolTextureUrl)),
+      ...AUDIO_PRELOAD_URLS.map((url, index) =>
+        loadTracked(`Sound ${index + 1}`, () => loadBinaryAsset(url))
+      ),
+      ...UI_IMAGE_PRELOAD_URLS.map((url, index) =>
+        loadTracked(`UI image ${index + 1}`, () => loadImageAsset(url))
+      )
     ]);
 
     characterTexture = prepareVoxelTexture(loadedCharacterTexture);
@@ -4694,15 +4800,9 @@ async function init() {
     addCharacterModel(characterFbx);
     addGunModel(pistolFbx);
     applyCurrentLevelConfig(currentLevelIndex);
-    updateStartScreenSelectionUi();
-    initEnemyPreviewEntries();
-
-    applyWorldScene(getStartScreenPreviewSceneKey(), { restartPlayer: false });
-    hideSpikedEnemies();
-
     loadingEl.style.display = 'none';
     sceneReady = true;
-    gameState = 'startscreen';
+    gameState = 'transition';
     hideStatusOverlay();
     hideLoaderScreen();
     syncScreenVisibility();
@@ -4786,7 +4886,6 @@ function animate() {
   updatePlayerVisual();
   updateHud();
   updateFps(smoothedFps);
-  renderEnemyPreviewEntries(simulationTime);
 
   composer.render(frameDelta);
 }
@@ -4890,7 +4989,8 @@ statusOverlay.addEventListener('click', (event) => {
   }
 
   if (action === 'retry-level') {
-    startCampaignLevel(currentLevelIndex);
+    requestGamePointerLock();
+    void retryCurrentLevel();
     return;
   }
 
@@ -5080,15 +5180,7 @@ pauseMenu.addEventListener('click', (event) => {
   }
 });
 
-document.addEventListener('pointermove', (event) => {
-  setCustomCursorPosition(event);
-  setCustomCursorTarget(document.elementFromPoint(event.clientX, event.clientY));
-});
-
 document.addEventListener('pointerover', (event) => {
-  setCustomCursorPosition(event);
-  setCustomCursorTarget(event.target);
-
   const button = event.target.closest('button');
   if (!button || button.disabled || button.contains(event.relatedTarget)) {
     return;
@@ -5097,12 +5189,8 @@ document.addEventListener('pointerover', (event) => {
   playUiHoverSfx();
 });
 
-document.addEventListener('pointerout', (event) => {
-  if (!event.relatedTarget) {
-    customCursor.classList.add('is-hidden');
-    customCursor.classList.remove('is-hovering-active');
-  }
-});
+document.addEventListener('pointerdown', unlockAudioOnUserGesture);
+document.addEventListener('keydown', unlockAudioOnUserGesture);
 
 document.addEventListener('mouseup', (event) => {
   if (event.button === 0) {
@@ -5115,7 +5203,6 @@ document.addEventListener('pointerlockchange', () => {
     triggerHeld = false;
   }
 
-  customCursor.classList.toggle('is-hidden', document.pointerLockElement === renderer.domElement);
   refreshHudMessage();
 });
 
