@@ -117,20 +117,25 @@ export function prepareEnemyTemplate({
 export function createSpikedEnemyModels({
   spikedEnemies,
   enemyTemplate,
+  enemyTemplates = {},
+  levelEnemies = [],
   enemyKey,
   configureEnemyRuntimeVisual
 }) {
   for (const enemyInstance of spikedEnemies) {
     enemyInstance.visualRoot.clear();
+    const enemyConfig = levelEnemies[enemyInstance.id];
+    const resolvedEnemyKey = enemyConfig?.enemyKey ?? enemyKey;
+    const template = enemyTemplates[resolvedEnemyKey] ?? enemyTemplate;
 
-    if (!enemyTemplate) {
+    if (!template) {
       enemyInstance.root.visible = false;
       enemyInstance.alive = false;
       continue;
     }
 
-    const model = enemyTemplate.clone(true);
-    configureEnemyRuntimeVisual(model, enemyKey);
+    const model = template.clone(true);
+    configureEnemyRuntimeVisual(model, resolvedEnemyKey);
     enemyInstance.visualRoot.add(model);
     enemyInstance.root.visible = false;
     enemyInstance.alive = false;
@@ -202,7 +207,8 @@ export function resetSpikedEnemies(state) {
       groundPoint = state.findGroundPointAt(
         enemyConfig.position[0],
         enemyConfig.position[2],
-        0.45
+        0.45,
+        enemyConfig.preferHighest ?? (enemyConfig.position[1] ?? 0) > 1
       ) || new THREE.Vector3(enemyConfig.position[0], enemyConfig.position[1] ?? 0.04, enemyConfig.position[2]);
     }
 
@@ -239,11 +245,16 @@ export function resetSpikedEnemies(state) {
       0.45
     ) || new THREE.Vector3(4 + enemyInstance.id * 2.2, 0.04, -4 - enemyInstance.id * 2.2);
 
+    const enemyVisualRadius =
+      state.enemyVisualRadii?.[enemyConfig.enemyKey ?? state.currentLevelConfig.enemyKey] ??
+      state.spikedEnemyVisualRadius;
+    enemyInstance.collider.radius = enemyVisualRadius;
+
     getEnemyCenterFromGroundPoint(
       state.tempVectorA,
       groundPoint,
       state.up,
-      state.spikedEnemyVisualRadius
+      enemyVisualRadius
     );
     enemyInstance.collider.center.copy(state.tempVectorA);
     enemyInstance.spawnCenter.copy(state.tempVectorA);
@@ -440,36 +451,51 @@ function updateSpikedEnemy(state, enemyInstance, deltaTime) {
 
   if (detectedPlayer && enemyType === 'fire' && enemyInstance.attackTimer <= 0) {
     enemyInstance.attackTimer = enemyConfig.fireRate ?? 1.6;
-    state.spawnEnemyProjectile?.({
-      type: 'fire',
-      position: enemyInstance.collider.center,
-      target: playerFoot,
-      damage: enemyConfig.projectileDamage ?? 1,
-      speed: 8.5,
-      radius: 0.18
-    });
+    const projectileCount = enemyConfig.projectileCount ?? 2;
+    const projectileSpread = enemyConfig.projectileSpread ?? 0.16;
+    state.tempVectorD.copy(state.playerCollider.start).lerp(state.playerCollider.end, 0.56);
+    state.tempVectorA.subVectors(state.tempVectorD, enemyInstance.collider.center).normalize();
+
+    for (let i = 0; i < projectileCount; i += 1) {
+      const spreadOffset = projectileCount <= 1 ? 0 : (i - (projectileCount - 1) * 0.5) * projectileSpread;
+      state.tempVectorB.copy(state.tempVectorA).applyAxisAngle(state.up, spreadOffset).normalize();
+      state.spawnEnemyProjectile?.({
+        type: 'fire',
+        position: enemyInstance.collider.center,
+        direction: state.tempVectorB,
+        damage: enemyConfig.projectileDamage ?? 1,
+        speed: enemyConfig.projectileSpeed ?? 8.5,
+        radius: enemyConfig.projectileRadius ?? 0.18
+      });
+    }
   }
 
-  if (detectedPlayer && enemyType === 'lava' && enemyInstance.attackTimer <= 0) {
+  if (
+    detectedPlayer &&
+    enemyType === 'lava' &&
+    enemyInstance.attackTimer <= 0 &&
+    !state.hasActiveEnemyProjectiles?.('lava')
+  ) {
     enemyInstance.attackTimer = enemyConfig.lavaBurstInterval ?? 2.1;
     for (let i = 0; i < 6; i += 1) {
       const angle = (i / 6) * Math.PI * 2 + Math.random() * 0.28;
-      state.tempVectorA.set(Math.cos(angle), 0.16, Math.sin(angle)).normalize();
+      state.tempVectorA.set(Math.cos(angle), 0, Math.sin(angle)).normalize();
       state.spawnEnemyProjectile?.({
         type: 'lava',
         position: enemyInstance.collider.center,
         direction: state.tempVectorA,
         damage: enemyConfig.projectileDamage ?? 1,
-        speed: 5.8,
-        radius: 0.16
+        speed: enemyConfig.projectileSpeed ?? 5.8,
+        radius: enemyConfig.projectileRadius ?? 0.64,
+        lifetime: enemyConfig.projectileLifetime ?? 12
       });
     }
   }
 
   enemyInstance.root.position.copy(enemyInstance.collider.center);
-  const enemyKey = state.currentLevelConfig.enemyKey;
+  const enemyKey = enemyInstance.enemyKey ?? state.currentLevelConfig.enemyKey;
   const runtimeModel = enemyInstance.visualRoot.children[0] ?? null;
-  if (enemyKey === 'fireSun') {
+  if (enemyType === 'fire' || enemyKey === 'fireSun') {
     state.updateEnemyRuntimeVisual(runtimeModel, enemyKey, state.simulationTime, deltaTime);
   } else {
     if (runtimeModel) {

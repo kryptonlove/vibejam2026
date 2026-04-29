@@ -1,10 +1,16 @@
-import { collisionWorldUrl, enemyTestWorldUrl } from './assets.js';
+import {
+  collisionWorldUrl,
+  enemyTestWorldUrl,
+  levelOneWorldUrl,
+  levelThreeWorldUrl,
+  levelTwoWorldUrl
+} from './assets.js';
 
-export const MENU_SCENE_TWO_KEY = 'menuSceneTwo';
+export const INTRO_SCENE_KEY = 'introScene';
 
 export const WORLD_SCENES = {
-  [MENU_SCENE_TWO_KEY]: {
-    label: 'Menu Scene 2',
+  [INTRO_SCENE_KEY]: {
+    label: 'Intro Scene',
     meta: 'Blender-authored ruins entry view rebuilt from modular GLB assets',
     playable: false,
     useGlowCubes: false,
@@ -20,8 +26,8 @@ export const WORLD_SCENES = {
       }
     },
     lightControls: {
-      lightName: 'MenuSceneTwoTopLight',
-      targetName: 'MenuSceneTwoTopLightTarget',
+      lightName: 'IntroSceneTopLight',
+      targetName: 'IntroSceneTopLightTarget',
       defaultValues: {
         position: [-2.1, -0.1, 5.5],
         target: [-0.8, 1.7, 3.9],
@@ -42,6 +48,31 @@ export const WORLD_SCENES = {
     meta: 'Lightweight flat arena for enemy testing',
     useGlowCubes: false,
     spawnNodeName: 'PlayerSpawn'
+  },
+  levelOne: {
+    label: 'Level 1',
+    url: levelOneWorldUrl,
+    meta: 'Draco-compressed platform arena for the first spiked-ball fight',
+    useGlowCubes: true,
+    glowCubeCount: 4,
+    spawnPosition: [0.018, 2.57, 0]
+  },
+  levelTwo: {
+    label: 'Level 2',
+    url: levelTwoWorldUrl,
+    meta: 'Draco-compressed platform arena for the mixed fire and spiked-ball fight',
+    useGlowCubes: true,
+    glowCubeCount: 4,
+    spawnPosition: [-0.194, 0.761, -19.114],
+    spawnLookAt: [0, 0.761, 0]
+  },
+  levelThree: {
+    label: 'Level 3',
+    url: levelThreeWorldUrl,
+    meta: 'Draco-compressed multi-platform arena for spiked, fire, and lava enemies',
+    useGlowCubes: true,
+    glowCubeCount: 4,
+    spawnPosition: [0, 0.55, 0]
   },
   demo: {
     label: 'Demo',

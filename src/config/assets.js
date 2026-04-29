@@ -1,5 +1,10 @@
 export const collisionWorldUrl = new URL('../assets/world/collision-world.glb', import.meta.url).href;
 export const enemyTestWorldUrl = new URL('../assets/world/enemy-test-platform.glb', import.meta.url).href;
+export const levelOneWorldUrl = new URL('../assets/world/level-01.1-draco.glb', import.meta.url).href;
+export const levelTwoWorldUrl = new URL('../assets/world/level-02-draco.glb', import.meta.url).href;
+export const levelThreeWorldUrl = new URL('../assets/world/level-03-draco.glb', import.meta.url).href;
+export const bricksSideTextureUrl = new URL('../assets/texture/bricks-side.png', import.meta.url).href;
+export const bricksTopTextureUrl = new URL('../assets/texture/bricks-top.png', import.meta.url).href;
 export const blockMossXsUrl = new URL('../assets/ruins/Blocks/BlockMossXS.glb', import.meta.url).href;
 export const pillarSquareUrl = new URL('../assets/ruins/Pillars/PillarSquare.glb', import.meta.url).href;
 export const groundMossXsUrl = new URL('../assets/ruins/Moss/GroundMossXS.glb', import.meta.url).href;

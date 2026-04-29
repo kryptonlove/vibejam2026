@@ -921,6 +921,31 @@ const UI_STYLE = `
     font-size: 19px;
   }
 
+  .menu-scene-hero__secondary-actions .ui-pixel-button {
+    --button-fill: #1A1A1A;
+    color: #fff;
+  }
+
+  .menu-scene-credit {
+    position: fixed;
+    left: 18px;
+    bottom: 18px;
+    z-index: 13;
+    pointer-events: auto;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 18px;
+    line-height: 1.2;
+    letter-spacing: 0.06em;
+    text-decoration: none;
+    text-transform: uppercase;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.5);
+  }
+
+  .menu-scene-credit:hover,
+  .menu-scene-credit:focus-visible {
+    color: #07d4ff;
+  }
+
   .menu-scene-camera-panel {
     position: fixed;
     top: 18px;
@@ -1279,6 +1304,9 @@ const UI_STYLE = `
     box-sizing: border-box;
     width: min(94vw, 900px);
     padding: 28px clamp(52px, 11vw, 104px) 30px;
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
   }
 
   .upgrade-screen__header {
@@ -1378,38 +1406,39 @@ const UI_STYLE = `
 
   .controls-popup__body {
     display: grid;
-    gap: 14px;
-    color: rgba(255, 255, 255, 0.82);
-    font-size: 21px;
-    line-height: 1.2;
+    gap: 12px;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 24px;
+    line-height: 1.15;
     text-transform: uppercase;
   }
 
-  .controls-popup__options {
+  .controls-popup__mapping {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    gap: 10px 38px;
+    align-items: center;
   }
 
-  .controls-popup__option {
-    padding: 12px;
-    border: 3px solid #000;
-    background: #c4c4c4;
-    color: #000;
+  .controls-popup__control {
+    color: #ffa900;
     text-align: left;
-    cursor: pointer;
-    font: inherit;
-    text-transform: uppercase;
   }
 
-  .controls-popup__option.is-active {
-    background: #ffa900;
+  .controls-popup__input {
+    color: #fff;
+    text-align: right;
   }
 
   .controls-popup__actions {
     display: flex;
     justify-content: center;
     margin-top: 18px;
+    overflow: visible;
+  }
+
+  .controls-popup__actions .ui-pixel-button {
+    width: 180px;
   }
 
   .hud__corner {
@@ -1543,9 +1572,9 @@ const UI_STYLE = `
     width: 34px;
     height: 34px;
     padding: 0;
-    border: 3px solid #000;
+    border: 3px solid transparent;
     border-radius: 0;
-    background: rgba(255, 255, 255, 0.12);
+    background: transparent;
     cursor: pointer;
     image-rendering: pixelated;
   }
@@ -1685,8 +1714,7 @@ const UI_STYLE = `
     .start-screen__start-button,
     .menu-scene-view-button,
     .menu-scene-camera-panel__reset,
-    .upgrade-card,
-    .controls-popup__option
+    .upgrade-card
   ) {
     box-sizing: border-box;
     transition:
@@ -1705,8 +1733,7 @@ const UI_STYLE = `
     .start-screen__scene-button,
     .start-screen__level-card,
     .menu-scene-hero__secondary-actions .ui-pixel-button,
-    .upgrade-card,
-    .controls-popup__option
+    .upgrade-card
   ) {
     width: 100%;
     justify-self: center;
@@ -1722,8 +1749,7 @@ const UI_STYLE = `
     .start-screen__scene-grid,
     .start-screen__level-grid,
     .menu-scene-hero__secondary-actions,
-    .upgrade-screen__grid,
-    .controls-popup__options
+    .upgrade-screen__grid
   ) {
     overflow: visible;
   }
@@ -1734,8 +1760,7 @@ const UI_STYLE = `
       .scene-selector__option,
       .start-screen__scene-button,
       .start-screen__level-card,
-      .menu-scene-hero__secondary-actions .ui-pixel-button,
-      .controls-popup__option
+      .menu-scene-hero__secondary-actions .ui-pixel-button
     ):is(:hover, :focus-visible) {
       position: relative;
       z-index: 2;
@@ -1755,10 +1780,13 @@ const UI_STYLE = `
 
     :where(
       .status-overlay__button,
-      .upgrade-screen__actions .ui-pixel-button,
-      .controls-popup__actions .ui-pixel-button
+      .upgrade-screen__actions .ui-pixel-button
     ):is(:hover, :focus-visible) {
       min-width: 207px;
+    }
+
+    .controls-popup__actions .ui-pixel-button:is(:hover, :focus-visible) {
+      width: 207px;
     }
 
     .pause-button:is(:hover, :focus-visible) {
@@ -1827,8 +1855,7 @@ const UI_STYLE = `
     }
 
     .menu-scene-hero__secondary-actions,
-    .upgrade-screen__grid,
-    .controls-popup__options {
+    .upgrade-screen__grid {
       grid-template-columns: 1fr;
     }
   }
@@ -1975,7 +2002,7 @@ export function createUi({
   const fpsEl = document.createElement('div');
   fpsEl.className = 'hud__fps';
   fpsEl.dataset.fps = '';
-  fpsEl.textContent = 'FPS 60\nCAM X 0.00 Y 0.00 Z 0.00';
+  fpsEl.textContent = '60';
   document.body.append(fpsEl);
 
   const statusOverlay = document.createElement('div');
@@ -2065,6 +2092,7 @@ export function createUi({
         <button class="ui-pixel-button ui-pixel-button--gray" type="button" data-audio-toggle>Music/SFX On</button>
       </div>
     </div>
+    <a class="menu-scene-credit" href="https://x.com/kryptonlove" target="_blank" rel="noopener noreferrer">created by andrey kr.</a>
   `;
   document.body.append(menuSceneHero);
 
@@ -2115,12 +2143,7 @@ export function createUi({
     <div class="controls-popup__card">
       <h2 class="controls-popup__title">Controls</h2>
       <div class="controls-popup__body">
-        <div data-controls-summary></div>
-        <div class="controls-popup__options" data-controls-levels></div>
-        <div class="controls-popup__options" data-controls-scenes></div>
-        <div>
-          WASD move · Shift run · Space jump · Mouse aim · Left click shoot · E shockwave · P pause
-        </div>
+        <div class="controls-popup__mapping" data-controls-mapping></div>
       </div>
       <div class="controls-popup__actions">
         <button class="ui-pixel-button ui-pixel-button--yellow" type="button" data-controls-close>Close</button>
@@ -2283,9 +2306,7 @@ export function createUi({
     upgradeGridEl: upgradeScreen.querySelector('[data-upgrade-grid]'),
     upgradeContinueButton: upgradeScreen.querySelector('[data-upgrade-continue]'),
     controlsPopup,
-    controlsSummaryEl: controlsPopup.querySelector('[data-controls-summary]'),
-    controlsLevelsEl: controlsPopup.querySelector('[data-controls-levels]'),
-    controlsScenesEl: controlsPopup.querySelector('[data-controls-scenes]'),
+    controlsMappingEl: controlsPopup.querySelector('[data-controls-mapping]'),
     controlsCloseButton: controlsPopup.querySelector('[data-controls-close]'),
     menuSceneCameraPanel,
     menuSceneCameraResetButton: menuSceneCameraPanel.querySelector('[data-camera-reset]'),
@@ -2349,7 +2370,7 @@ export function createUi({
     startSceneButtons: Array.from(startScreen.querySelectorAll('[data-start-scene]')),
     startLevelButtons: Array.from(startScreen.querySelectorAll('[data-start-level]')),
     startPreviewHosts: Array.from(startScreen.querySelectorAll('[data-level-preview]')),
-    startMenuSceneButton: startScreen.querySelector('[data-start-action="show-menu-scene-two"]'),
+    startMenuSceneButton: startScreen.querySelector('[data-start-action="show-intro-scene"]'),
     startRunButton: startScreen.querySelector('[data-start-action="start"]')
   };
 

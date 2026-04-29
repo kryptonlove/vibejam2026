@@ -4,6 +4,16 @@ const AIM_DISTANCE = 240;
 const ENEMY_AIM_RADIUS_MULTIPLIER = 1.3;
 const tempAimSphere = new THREE.Sphere();
 const tempAimPoint = new THREE.Vector3();
+const tempBulletLine = new THREE.Line3();
+const tempBulletStart = new THREE.Vector3();
+const tempBulletCandidatePoint = new THREE.Vector3();
+const tempBulletImpactPoint = new THREE.Vector3();
+
+function sweptSphereIntersectsSphere(line, sphere, extraRadius, targetPoint) {
+  line.closestPointToPoint(sphere.center, true, targetPoint);
+  const radius = sphere.radius + extraRadius;
+  return targetPoint.distanceToSquared(sphere.center) <= radius * radius;
+}
 
 export function createCombatFxResources() {
   return {
@@ -159,24 +169,45 @@ export function updateBullets(
       continue;
     }
 
+    tempBulletStart.copy(bullet.collider.center);
     bullet.collider.center.addScaledVector(bullet.velocity, deltaTime);
+    tempBulletLine.set(tempBulletStart, bullet.collider.center);
 
     let hitEnemy = null;
+    let hitDistanceSquared = Infinity;
 
     for (const enemyInstance of spikedEnemies) {
       if (!enemyInstance.alive) {
         continue;
       }
 
-      if (sphereIntersectsSphere(bullet.collider, enemyInstance.collider)) {
+      const sweptHit = sweptSphereIntersectsSphere(
+        tempBulletLine,
+        enemyInstance.collider,
+        bullet.collider.radius,
+        tempBulletCandidatePoint
+      );
+      const currentHit = !sweptHit && sphereIntersectsSphere(bullet.collider, enemyInstance.collider);
+
+      if (currentHit) {
+        tempBulletCandidatePoint.copy(bullet.collider.center);
+      }
+
+      if (sweptHit || currentHit) {
+        const distanceSquared = tempBulletStart.distanceToSquared(tempBulletCandidatePoint);
+        if (distanceSquared >= hitDistanceSquared) {
+          continue;
+        }
+
         hitEnemy = enemyInstance;
-        break;
+        hitDistanceSquared = distanceSquared;
+        tempBulletImpactPoint.copy(tempBulletCandidatePoint);
       }
     }
 
     if (hitEnemy) {
       removeBullet({ bullets, scene }, i);
-      damageSpikedEnemy(hitEnemy, bullet.collider.center, bullet.damage);
+      damageSpikedEnemy(hitEnemy, tempBulletImpactPoint, bullet.damage);
       continue;
     }
 

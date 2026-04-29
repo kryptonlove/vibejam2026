@@ -7,6 +7,8 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import {
   blockMossXsUrl,
+  bricksSideTextureUrl,
+  bricksTopTextureUrl,
   decorationUiUrl,
   enemyExplosionSfxUrl,
   enemyHitSfxUrl,
@@ -118,7 +120,7 @@ import {
   DEFAULT_CAMPAIGN_SCENE_KEY,
   DEFAULT_SCENE_KEY,
   DEFAULT_START_SCREEN_TAB,
-  MENU_SCENE_TWO_KEY,
+  INTRO_SCENE_KEY,
   PLAYABLE_WORLD_SCENE_ENTRIES,
   PLAYABLE_WORLD_SCENES,
   WORLD_SCENES
@@ -154,7 +156,7 @@ import {
   clearMenuSceneEffects as clearMenuSceneEffectsWorld,
   setupMenuSceneEffects as setupMenuSceneEffectsWorld
 } from './world/menu-scene.js';
-import { createMenuSceneTwoWorld as createMenuSceneTwoWorldWorld } from './world/menu-scene-two.js';
+import { createIntroSceneWorld as createIntroSceneWorldWorld } from './world/intro-scene.js';
 import {
   addGlowCubesToWorld as addGlowCubesToWorldWorld,
   addMenuSceneGlowCubes as addMenuSceneGlowCubesWorld,
@@ -246,10 +248,8 @@ const {
   statusOverlay,
   audioToggleButton,
   controlsCloseButton,
-  controlsLevelsEl,
+  controlsMappingEl,
   controlsPopup,
-  controlsScenesEl,
-  controlsSummaryEl,
   cutsceneScreen,
   cutsceneTitleEl,
   cutsceneTextEl,
@@ -384,11 +384,11 @@ function shouldHideGameplayAvatar(sceneKey = activeSceneKey) {
 }
 
 function shouldShowMenuSceneHero(sceneKey = activeSceneKey) {
-  return menuSceneViewOpen && sceneKey === MENU_SCENE_TWO_KEY;
+  return menuSceneViewOpen && sceneKey === INTRO_SCENE_KEY;
 }
 
 function getStartScreenPreviewSceneKey() {
-  return startScreenTab === 'menu' ? MENU_SCENE_TWO_KEY : selectedStartSceneKey;
+  return startScreenTab === 'menu' ? INTRO_SCENE_KEY : selectedStartSceneKey;
 }
 
 function syncScreenVisibility() {
@@ -429,25 +429,22 @@ function updateStartScreenSelectionUi() {
 }
 
 function renderControlsPopup() {
-  const levelConfig = ENEMY_LEVELS[selectedStartLevelIndex];
-  controlsSummaryEl.innerHTML = `
-    <div>Selected scene: ${PLAYABLE_WORLD_SCENES[selectedStartSceneKey]?.label ?? selectedStartSceneKey}</div>
-    <div>Selected level: ${levelConfig.label}</div>
-    <div>${getCutscenePlainText(levelConfig.cutsceneText)}</div>
-    <div>Enemies: ${levelConfig.enemies.length} ${levelConfig.enemyPluralLabel}</div>
-  `;
-
-  controlsLevelsEl.innerHTML = ENEMY_LEVELS.map((config, index) => `
-    <button class="controls-popup__option${index === selectedStartLevelIndex ? ' is-active' : ''}" type="button" data-controls-level="${index}">
-      ${config.label}<br />${config.enemyPluralLabel}
-    </button>
-  `).join('');
-
-  controlsScenesEl.innerHTML = PLAYABLE_WORLD_SCENE_ENTRIES.map(([sceneKey, sceneConfig]) => `
-    <button class="controls-popup__option${sceneKey === selectedStartSceneKey ? ' is-active' : ''}" type="button" data-controls-scene="${sceneKey}">
-      ${sceneConfig.label}<br />${sceneConfig.meta}
-    </button>
-  `).join('');
+  controlsMappingEl.innerHTML = [
+    ['Move', 'WASD / Arrow keys'],
+    ['Run', 'Hold Shift'],
+    ['Jump', 'Space'],
+    ['Aim', 'Mouse'],
+    ['Shoot', 'Left click'],
+    ['Shockwave', 'E'],
+    ['Pause', 'P']
+  ]
+    .map(
+      ([control, input]) => `
+        <span class="controls-popup__control">${control}</span>
+        <span class="controls-popup__input">${input}</span>
+      `
+    )
+    .join('');
 }
 
 function setControlsPopupOpen(open) {
@@ -526,6 +523,11 @@ function applyUpgrade(upgradeId) {
 }
 
 const CUTSCENE_TYPE_INTERVAL = 56;
+const FINAL_CAMPAIGN_CUTSCENE = {
+  title: 'Final',
+  cutsceneText:
+    'This game was made by andreykr with the help of Three.js and Codex during vibejam 2026. Zero lines of code were written. If you enjoyed the game and want to see more levels and updates, follow me on Twitter.'
+};
 
 function normalizeCutsceneSegments(cutsceneText) {
   if (Array.isArray(cutsceneText)) {
@@ -628,7 +630,8 @@ function showCutscene(levelConfig, { beforeTypewriter = null, onContinue = null 
     let stopTypewriter = null;
     let resolved = false;
 
-    cutsceneTitleEl.textContent = `Chapter ${levelConfig.number ?? currentLevelIndex + 1}`;
+    cutsceneTitleEl.textContent =
+      levelConfig.title ?? `Chapter ${levelConfig.number ?? currentLevelIndex + 1}`;
     cutsceneTextEl.textContent = '';
     cutsceneScreen.hidden = false;
 
@@ -734,7 +737,7 @@ function setStartScreenOpen(open) {
   refreshHudMessage();
 }
 
-function openMenuSceneView(sceneKey = MENU_SCENE_TWO_KEY) {
+function openMenuSceneView(sceneKey = INTRO_SCENE_KEY) {
   if (!sceneReady) {
     return;
   }
@@ -778,7 +781,7 @@ function openMenuSceneView(sceneKey = MENU_SCENE_TWO_KEY) {
   refreshHudMessage();
 }
 
-async function openMenuSceneViewWithTransition(sceneKey = MENU_SCENE_TWO_KEY) {
+async function openMenuSceneViewWithTransition(sceneKey = INTRO_SCENE_KEY) {
   if (!sceneReady) {
     return;
   }
@@ -1363,8 +1366,8 @@ function configureNonPlayableScenePlayerPose(sceneKey = activeSceneKey) {
   setCharacterAction('Armature|idle with pistol', { fade: 0.08, force: true });
 }
 
-function createMenuSceneTwoWorld(assetTemplates) {
-  return createMenuSceneTwoWorldWorld(assetTemplates);
+function createIntroSceneWorld(assetTemplates) {
+  return createIntroSceneWorldWorld(assetTemplates);
 }
 
 function addMenuSceneGlowCubes() {
@@ -1383,8 +1386,9 @@ function addGlowCubesForScene(sceneKey) {
     return;
   }
 
-  if (WORLD_SCENES[sceneKey]?.useGlowCubes !== false) {
-    addGlowCubesToWorld(GLOW_CUBE_COUNT);
+  const sceneConfig = WORLD_SCENES[sceneKey];
+  if (sceneConfig?.useGlowCubes !== false) {
+    addGlowCubesToWorld(sceneConfig?.glowCubeCount ?? GLOW_CUBE_COUNT);
   }
 }
 
@@ -1539,6 +1543,8 @@ let characterScale = 1;
 let weaponHolderBone = null;
 let characterTexture = null;
 let pistolTexture = null;
+let bricksTopTexture = null;
+let bricksSideTexture = null;
 let lastEmptyShotAt = -Infinity;
 let orbitYaw = 0;
 let orbitPitch = 0;
@@ -1568,6 +1574,7 @@ let shockwaveCooldownTimer = 0;
 let audioEnabled = true;
 let audioInteractionUnlocked = false;
 
+const BRICK_TILE_WORLD_SIZE = 5.4;
 const loaderState = {
   total: 0,
   loaded: 0
@@ -1720,6 +1727,7 @@ syncAudioMuteState();
 const loadedWorldTemplates = {};
 const worldSceneFactories = {};
 const enemyTemplates = {};
+const enemyVisualRadii = {};
 const menuSceneFireEffects = [];
 const menuSceneStormState = {
   active: false,
@@ -1781,6 +1789,9 @@ const tempVectorB = new THREE.Vector3();
 const tempVectorC = new THREE.Vector3();
 const tempVectorD = new THREE.Vector3();
 const tempVectorE = new THREE.Vector3();
+const tempVectorF = new THREE.Vector3();
+const tempVectorG = new THREE.Vector3();
+const tempProjectilePreviousCenter = new THREE.Vector3();
 const tempNormalMatrix = new THREE.Matrix3();
 const tempMatrix4A = new THREE.Matrix4();
 const tempMatrix4B = new THREE.Matrix4();
@@ -2104,7 +2115,7 @@ function updateHud() {
 }
 
 function updateFps(fps) {
-  updateFpsUi(ui, fps, camera.position);
+  updateFpsUi(ui, fps);
 }
 
 function setHudMessage(text) {
@@ -2156,8 +2167,8 @@ function loadTracked(label, loader) {
   });
 }
 
-function prepareEnemyTemplate(root) {
-  spikedEnemyVisualRadius = prepareEnemyTemplateEnemies({
+function prepareEnemyTemplate(enemyKey, root) {
+  const visualRadius = prepareEnemyTemplateEnemies({
     renderer,
     root,
     tempBox,
@@ -2167,6 +2178,8 @@ function prepareEnemyTemplate(root) {
     targetDiameter: SPIKED_ENEMY_TARGET_DIAMETER,
     spikedEnemies
   });
+  enemyVisualRadii[enemyKey] = visualRadius;
+  spikedEnemyVisualRadius = visualRadius;
 }
 
 function cloneMeshMaterial(mesh) {
@@ -3351,6 +3364,24 @@ function respawnPlayer(resetHealth = false) {
   );
 }
 
+function getSceneSpawnYaw(sceneKey = activeSceneKey) {
+  const lookAt = WORLD_SCENES[sceneKey]?.spawnLookAt;
+
+  if (!Array.isArray(lookAt)) {
+    return 0;
+  }
+
+  const [targetX = 0, , targetZ = 0] = lookAt;
+  const deltaX = targetX - playerSpawn.x;
+  const deltaZ = targetZ - playerSpawn.z;
+
+  if (Math.hypot(deltaX, deltaZ) < 0.001) {
+    return 0;
+  }
+
+  return Math.atan2(-deltaX, -deltaZ);
+}
+
 function damagePlayer(amount) {
   const previousHp = hp;
   hp = damagePlayerPlayer({ maxHp: playerStats.maxHP }, hp, amount);
@@ -3516,11 +3547,16 @@ async function handlePortalEntered() {
 
   const finalLevel = currentLevelIndex >= ENEMY_LEVELS.length - 1;
   if (finalLevel) {
-    showStatusOverlay('Campaign Complete', `All ${ENEMY_LEVELS.length} levels are cleared.`, {
-      interactive: true,
-      actions: [{ label: 'Home', action: 'home' }]
+    gameState = 'cutscene';
+    syncScreenVisibility();
+    await showCutscene(FINAL_CAMPAIGN_CUTSCENE, {
+      beforeTypewriter: () => fadeFromBlack()
     });
-    gameState = 'gameover';
+    await fadeToBlack();
+    cutsceneScreen.hidden = true;
+    runInProgress = false;
+    resetRunStats();
+    openMenuSceneView(INTRO_SCENE_KEY);
     await fadeFromBlack();
     return;
   }
@@ -3570,7 +3606,7 @@ function restartGame({ startPlaying = true } = {}) {
   hp = playerStats.maxHP;
   ammo = weaponStats.magazine;
   playerOnFloor = false;
-  yaw = 0;
+  yaw = getSceneSpawnYaw();
   pitch = DEFAULT_GAMEPLAY_PITCH;
   orbitYaw = 0;
   orbitPitch = 0;
@@ -3830,6 +3866,7 @@ function resetSpikedEnemies() {
     findGroundPointAt,
     tempVectorA,
     spikedEnemyVisualRadius,
+    enemyVisualRadii,
     spikedEnemyMaxHp: SPIKED_ENEMY_MAX_HP,
     up: UP,
     spikedEnemyPatrolRadius: SPIKED_ENEMY_PATROL_RADIUS
@@ -3920,6 +3957,7 @@ function updateSpikedEnemies(deltaTime) {
       spikedEnemyBounceSpeed: SPIKED_ENEMY_BOUNCE_SPEED,
       killPlayer,
       spawnEnemyProjectile,
+      hasActiveEnemyProjectiles,
       sampleFlatGroundPoint,
       up: UP
     },
@@ -3948,13 +3986,27 @@ function clearEnemyProjectiles() {
   }
 }
 
-function spawnEnemyProjectile({ type, position, target = null, direction = null, damage = 1, speed = 7, radius = 0.16 }) {
+function hasActiveEnemyProjectiles(type = null) {
+  return enemyProjectiles.some((projectile) => !type || projectile.type === type);
+}
+
+function spawnEnemyProjectile({
+  type,
+  position,
+  target = null,
+  direction = null,
+  damage = 1,
+  speed = 7,
+  radius = 0.16,
+  lifetime = 4
+}) {
   const material = type === 'lava' ? lavaProjectileMaterial : fireProjectileMaterial;
   const mesh = new THREE.Mesh(enemyProjectileGeometry, material);
   mesh.castShadow = true;
   mesh.receiveShadow = false;
   mesh.position.copy(position);
   mesh.position.y += 0.12;
+  mesh.scale.setScalar(radius / 0.16);
 
   const light = new THREE.PointLight(type === 'lava' ? 0xff3a00 : 0xffc247, 2.5, 5.5, 2);
   mesh.add(light);
@@ -3978,16 +4030,96 @@ function spawnEnemyProjectile({ type, position, target = null, direction = null,
     velocity,
     damage,
     age: 0,
-    lifetime: 4
+    lifetime
   });
 }
 
-function enemyProjectileHitsPlayer(projectile) {
+function closestSegmentDistanceSquared(startA, endA, startB, endB) {
+  tempVectorC.subVectors(endA, startA);
+  tempVectorD.subVectors(endB, startB);
+  tempVectorE.subVectors(startA, startB);
+
+  const a = tempVectorC.dot(tempVectorC);
+  const b = tempVectorC.dot(tempVectorD);
+  const c = tempVectorD.dot(tempVectorD);
+  const d = tempVectorC.dot(tempVectorE);
+  const e = tempVectorD.dot(tempVectorE);
+  const denominator = a * c - b * b;
+
+  let s = 0;
+  let t = 0;
+
+  if (a <= 1e-8 && c <= 1e-8) {
+    return startA.distanceToSquared(startB);
+  }
+
+  if (a <= 1e-8) {
+    t = THREE.MathUtils.clamp(e / c, 0, 1);
+  } else if (c <= 1e-8) {
+    s = THREE.MathUtils.clamp(-d / a, 0, 1);
+  } else {
+    s = denominator !== 0 ? THREE.MathUtils.clamp((b * e - c * d) / denominator, 0, 1) : 0;
+    t = (b * s + e) / c;
+
+    if (t < 0) {
+      t = 0;
+      s = THREE.MathUtils.clamp(-d / a, 0, 1);
+    } else if (t > 1) {
+      t = 1;
+      s = THREE.MathUtils.clamp((b - d) / a, 0, 1);
+    }
+  }
+
+  tempVectorF.copy(startA).addScaledVector(tempVectorC, s);
+  tempVectorG.copy(startB).addScaledVector(tempVectorD, t);
+  return tempVectorF.distanceToSquared(tempVectorG);
+}
+
+function enemyProjectilePointHitsPlayer(projectile, point) {
   playerCapsuleLine.start.copy(playerCollider.start);
   playerCapsuleLine.end.copy(playerCollider.end);
-  playerCapsuleLine.closestPointToPoint(projectile.collider.center, true, tempVectorA);
+  playerCapsuleLine.closestPointToPoint(point, true, tempVectorA);
   const radius = playerCollider.radius + projectile.collider.radius;
-  return tempVectorA.distanceToSquared(projectile.collider.center) <= radius * radius;
+  return tempVectorA.distanceToSquared(point) <= radius * radius;
+}
+
+function enemyProjectileHitsPlayer(projectile, previousCenter = null) {
+  if (enemyProjectilePointHitsPlayer(projectile, projectile.collider.center)) {
+    return true;
+  }
+
+  if (!previousCenter) {
+    return false;
+  }
+
+  if (enemyProjectilePointHitsPlayer(projectile, previousCenter)) {
+    return true;
+  }
+
+  const radius = playerCollider.radius + projectile.collider.radius;
+  return (
+    closestSegmentDistanceSquared(
+      previousCenter,
+      projectile.collider.center,
+      playerCollider.start,
+      playerCollider.end
+    ) <= radius * radius
+  );
+}
+
+function enemyProjectileOutsideWorldBounds(projectile) {
+  if (worldBounds.isEmpty()) {
+    return false;
+  }
+
+  const padding = projectile.collider.radius + 1;
+  const { x, z } = projectile.collider.center;
+  return (
+    x < worldBounds.min.x - padding ||
+    x > worldBounds.max.x + padding ||
+    z < worldBounds.min.z - padding ||
+    z > worldBounds.max.z + padding
+  );
 }
 
 function updateEnemyProjectiles(deltaTime) {
@@ -4001,20 +4133,17 @@ function updateEnemyProjectiles(deltaTime) {
       continue;
     }
 
-    if (projectile.type === 'lava') {
+    if (projectile.type !== 'lava') {
       projectile.velocity.y -= 8.5 * deltaTime;
     }
 
+    tempProjectilePreviousCenter.copy(projectile.collider.center);
     projectile.collider.center.addScaledVector(projectile.velocity, deltaTime);
 
-    const worldHit = worldOctree.sphereIntersect(projectile.collider);
-    if (worldHit) {
-      scene.remove(projectile.mesh);
-      enemyProjectiles.splice(i, 1);
-      continue;
-    }
-
-    if ((gameState === 'playing' || gameState === 'portal') && enemyProjectileHitsPlayer(projectile)) {
+    if (
+      (gameState === 'playing' || gameState === 'portal') &&
+      enemyProjectileHitsPlayer(projectile, tempProjectilePreviousCenter)
+    ) {
       damagePlayer(projectile.damage);
       scene.remove(projectile.mesh);
       enemyProjectiles.splice(i, 1);
@@ -4022,6 +4151,19 @@ function updateEnemyProjectiles(deltaTime) {
       if (hp <= 0) {
         killPlayer();
       }
+      continue;
+    }
+
+    if (projectile.type === 'lava' && enemyProjectileOutsideWorldBounds(projectile)) {
+      scene.remove(projectile.mesh);
+      enemyProjectiles.splice(i, 1);
+      continue;
+    }
+
+    const worldHit = projectile.type === 'lava' ? null : worldOctree.sphereIntersect(projectile.collider);
+    if (worldHit) {
+      scene.remove(projectile.mesh);
+      enemyProjectiles.splice(i, 1);
       continue;
     }
 
@@ -4158,10 +4300,17 @@ function createPortalMaterial() {
 
 function openLevelPortal() {
   clearPortal();
-  const playerFoot = getPlayerFootPosition(tempVectorA);
-  tempVectorB.set(-Math.sin(yaw), 0, -Math.cos(yaw)).normalize();
-  tempVectorC.copy(playerFoot).addScaledVector(tempVectorB, 4.5);
-  const groundPoint = findGroundPointAt(tempVectorC.x, tempVectorC.z, 0.45) ?? playerFoot.clone().addScaledVector(tempVectorB, 4.5);
+  let groundPoint = null;
+
+  if (Array.isArray(currentLevelConfig.portalPosition)) {
+    const [x = 0, y = 0, z = 0] = currentLevelConfig.portalPosition;
+    groundPoint = findGroundPointAt(x, z, 0.45, true) ?? new THREE.Vector3(x, y, z);
+  } else {
+    const playerFoot = getPlayerFootPosition(tempVectorA);
+    tempVectorB.set(-Math.sin(yaw), 0, -Math.cos(yaw)).normalize();
+    tempVectorC.copy(playerFoot).addScaledVector(tempVectorB, 4.5);
+    groundPoint = findGroundPointAt(tempVectorC.x, tempVectorC.z, 0.45) ?? playerFoot.clone().addScaledVector(tempVectorB, 4.5);
+  }
 
   portalGroup = new THREE.Group();
   portalGroup.position.copy(groundPoint).addScaledVector(UP, 0.08);
@@ -4556,12 +4705,273 @@ function prepareVoxelTexture(texture) {
   return prepareVoxelTextureWorld(texture, renderer.capabilities.getMaxAnisotropy());
 }
 
+function prepareWorldTexture(texture) {
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.flipY = false;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function createWorldMaterialMap(texture, previousMap, options = {}) {
+  const map = texture.clone();
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  map.wrapS = THREE.RepeatWrapping;
+  map.wrapT = THREE.RepeatWrapping;
+  map.minFilter = THREE.LinearMipmapLinearFilter;
+  map.magFilter = THREE.LinearFilter;
+  map.flipY = false;
+
+  if (options.repeat) {
+    map.offset.set(0, 0);
+    map.repeat.set(options.repeat[0], options.repeat[1]);
+    map.center.set(0, 0);
+    map.rotation = 0;
+  } else if (previousMap) {
+    map.offset.copy(previousMap.offset);
+    map.repeat.copy(previousMap.repeat);
+    map.center.copy(previousMap.center);
+    map.rotation = previousMap.rotation;
+  } else {
+    map.repeat.set(6, 6);
+  }
+
+  map.needsUpdate = true;
+  return map;
+}
+
+function ensureGeneratedBoxUv(geometry, object = null, tileSize = null, force = false) {
+  const positionAttribute = geometry?.attributes?.position;
+  if (!positionAttribute || (geometry.attributes.uv && !force)) {
+    return;
+  }
+
+  const normalAttribute = geometry.attributes.normal;
+  const uv = new Float32Array(positionAttribute.count * 2);
+  const useWorldSpace = object && tileSize;
+  const worldPosition = new THREE.Vector3();
+  const worldNormal = new THREE.Vector3();
+  const normalMatrix = new THREE.Matrix3();
+
+  if (useWorldSpace) {
+    object.updateWorldMatrix(true, false);
+    normalMatrix.getNormalMatrix(object.matrixWorld);
+  }
+
+  for (let index = 0; index < positionAttribute.count; index += 1) {
+    worldPosition.set(
+      positionAttribute.getX(index),
+      positionAttribute.getY(index),
+      positionAttribute.getZ(index)
+    );
+    worldNormal.set(
+      normalAttribute?.getX(index) ?? 0,
+      normalAttribute?.getY(index) ?? 1,
+      normalAttribute?.getZ(index) ?? 0
+    );
+
+    if (useWorldSpace) {
+      worldPosition.applyMatrix4(object.matrixWorld);
+      worldNormal.applyMatrix3(normalMatrix).normalize();
+    }
+
+    const x = worldPosition.x;
+    const y = worldPosition.y;
+    const z = worldPosition.z;
+    const nx = worldNormal.x;
+    const ny = worldNormal.y;
+    const nz = worldNormal.z;
+    const absX = Math.abs(nx);
+    const absY = Math.abs(ny);
+    const absZ = Math.abs(nz);
+    const divisor = tileSize || 1;
+
+    if (absY >= absX && absY >= absZ) {
+      uv[index * 2] = x / divisor;
+      uv[index * 2 + 1] = z / divisor;
+    } else if (absX >= absZ) {
+      uv[index * 2] = z / divisor;
+      uv[index * 2 + 1] = y / divisor;
+    } else {
+      uv[index * 2] = x / divisor;
+      uv[index * 2 + 1] = y / divisor;
+    }
+  }
+
+  geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+}
+
+function applyBrickTextures(root, topTexture, sideTexture, options = {}) {
+  if (!topTexture || !sideTexture) {
+    return;
+  }
+
+  const extraTopMaterialNames = options.extraTopMaterialNames ?? [];
+  const extraTopMeshNames = options.extraTopMeshNames ?? [];
+  const generateUvForMaterialNames = options.generateUvForMaterialNames ?? [];
+
+  root.traverse((child) => {
+    if (!child.isMesh || !child.material) {
+      return;
+    }
+
+    const meshName = child.name?.toLowerCase() ?? '';
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    const hasGeneratedUvMaterial = materials.some((material) => {
+      const materialName = material?.name?.toLowerCase() ?? '';
+      return generateUvForMaterialNames.some((name) => materialName.includes(name));
+    });
+
+    if (
+      options.generateUvForMeshNames?.some((name) => meshName.includes(name)) ||
+      hasGeneratedUvMaterial
+    ) {
+      if (!child.geometry.attributes.uv || options.forceGenerateUv) {
+        child.geometry = child.geometry.clone();
+      }
+      ensureGeneratedBoxUv(
+        child.geometry,
+        child,
+        options.generatedUvTileSize,
+        options.forceGenerateUv
+      );
+    }
+
+    for (const material of materials) {
+      if (!material) {
+        continue;
+      }
+
+      const materialName = material.name?.toLowerCase() ?? '';
+      const shouldUseTopTexture =
+        materialName.includes('bricktop') ||
+        extraTopMaterialNames.some((name) => materialName.includes(name)) ||
+        extraTopMeshNames.some((name) => meshName.includes(name));
+
+      if (shouldUseTopTexture) {
+        material.map = createWorldMaterialMap(topTexture, material.map, options.topMapOptions);
+      } else if (materialName.includes('brickside')) {
+        material.map = createWorldMaterialMap(sideTexture, material.map, options.sideMapOptions);
+      } else {
+        continue;
+      }
+
+      material.color?.set(0xffffff);
+      material.needsUpdate = true;
+    }
+  });
+}
+
+function applyLevelOneBrickTextures(root) {
+  applyBrickTextures(root, bricksTopTexture, bricksTopTexture, {
+    extraTopMaterialNames: ['platformground'],
+    extraTopMeshNames: ['cube'],
+    generateUvForMeshNames: ['cube'],
+    generatedUvTileSize: BRICK_TILE_WORLD_SIZE,
+    forceGenerateUv: true,
+    topMapOptions: { repeat: [1, 1] },
+    sideMapOptions: { repeat: [1, 1] }
+  });
+}
+
+function applyLevelTwoBrickTextures(root) {
+  applyBrickTextures(root, bricksTopTexture, bricksTopTexture, {
+    extraTopMaterialNames: ['platformground'],
+    extraTopMeshNames: ['cube'],
+    generateUvForMeshNames: ['cube'],
+    generatedUvTileSize: BRICK_TILE_WORLD_SIZE,
+    forceGenerateUv: true,
+    topMapOptions: { repeat: [1, 1] },
+    sideMapOptions: { repeat: [1, 1] }
+  });
+}
+
+function applyLevelThreeBrickTextures(root) {
+  applyBrickTextures(root, bricksTopTexture, bricksTopTexture, {
+    extraTopMaterialNames: ['platformground', 'material'],
+    extraTopMeshNames: ['cube'],
+    generateUvForMeshNames: ['cube'],
+    generateUvForMaterialNames: ['material'],
+    generatedUvTileSize: BRICK_TILE_WORLD_SIZE,
+    forceGenerateUv: true,
+    topMapOptions: { repeat: [1, 1] },
+    sideMapOptions: { repeat: [1, 1] }
+  });
+}
+
+function isBrickPlatformObject(object) {
+  const objectName = object.name?.toLowerCase() ?? '';
+  const geometryName = object.geometry?.name?.toLowerCase() ?? '';
+  const materials = Array.isArray(object.material) ? object.material : [object.material];
+  const hasPlatformMaterial = materials.some((material) => {
+    const materialName = material?.name?.toLowerCase() ?? '';
+    return materialName === 'material' || materialName.includes('platformground');
+  });
+
+  return objectName.includes('cube') || geometryName.includes('cube') || hasPlatformMaterial;
+}
+
+function expandBrickPlatformInstances(root) {
+  const replacements = [];
+
+  root.traverse((child) => {
+    if (child.isInstancedMesh && isBrickPlatformObject(child)) {
+      replacements.push(child);
+    }
+  });
+
+  for (const source of replacements) {
+    const parent = source.parent;
+    if (!parent) {
+      continue;
+    }
+
+    const expanded = new THREE.Group();
+    expanded.name = source.name || source.geometry?.name || 'BrickPlatformInstances';
+    expanded.matrix.copy(source.matrix);
+    expanded.matrixAutoUpdate = false;
+
+    for (let index = 0; index < source.count; index += 1) {
+      const instanceMatrix = new THREE.Matrix4();
+      source.getMatrixAt(index, instanceMatrix);
+
+      const mesh = new THREE.Mesh(source.geometry.clone(), source.material);
+      mesh.name = `${expanded.name}_${index + 1}`;
+      mesh.matrix.copy(instanceMatrix);
+      mesh.matrixAutoUpdate = false;
+      mesh.castShadow = source.castShadow;
+      mesh.receiveShadow = source.receiveShadow;
+      mesh.userData = { ...source.userData };
+      expanded.add(mesh);
+    }
+
+    parent.remove(source);
+    parent.add(expanded);
+  }
+}
+
 function addWorldScene(root, collisionRoot = root) {
+  if (activeSceneKey === 'levelThree') {
+    expandBrickPlatformInstances(root);
+  }
+
   const nextState = addWorldSceneWorld(
     { scene, renderer, worldMeshes, worldOctree, worldBounds },
     root,
     collisionRoot
   );
+  if (activeSceneKey === 'levelOne') {
+    applyLevelOneBrickTextures(root);
+  } else if (activeSceneKey === 'levelTwo') {
+    applyLevelTwoBrickTextures(root);
+  } else if (activeSceneKey === 'levelThree') {
+    applyLevelThreeBrickTextures(root);
+  }
   currentCollisionRoot = nextState.currentCollisionRoot;
   worldFloor = nextState.worldFloor;
 }
@@ -4615,6 +5025,8 @@ function createSpikedEnemyModels() {
   createSpikedEnemyModelsEnemies({
     spikedEnemies,
     enemyTemplate: getCurrentEnemyTemplate(),
+    enemyTemplates,
+    levelEnemies: getCurrentLevelEnemies(),
     enemyKey: currentLevelConfig.enemyKey,
     configureEnemyRuntimeVisual
   });
@@ -4641,8 +5053,8 @@ function addGlowCubesToWorld(count) {
   });
 }
 
-function findGroundPointAt(x, z, normalThreshold = 0.5) {
-  return findGroundPointAtWorld({ worldBounds, worldMeshes, x, z, normalThreshold });
+function findGroundPointAt(x, z, normalThreshold = 0.5, preferHighest = false) {
+  return findGroundPointAtWorld({ worldBounds, worldMeshes, x, z, normalThreshold, preferHighest });
 }
 
 function getSceneSpawnPoint(sceneKey) {
@@ -4696,7 +5108,7 @@ function applyWorldScene(sceneKey, { restartPlayer = true, startPlaying = true }
 
 async function init() {
   try {
-    loaderState.total = 23 + AUDIO_PRELOAD_URLS.length + UI_IMAGE_PRELOAD_URLS.length;
+    loaderState.total = 28 + AUDIO_PRELOAD_URLS.length + UI_IMAGE_PRELOAD_URLS.length;
     loaderState.loaded = 0;
     showLoaderScreen(
       'Loading Assets',
@@ -4715,6 +5127,9 @@ async function init() {
     const [
       worldGltf,
       enemyTestWorldGltf,
+      levelOneWorldGltf,
+      levelTwoWorldGltf,
+      levelThreeWorldGltf,
       blockMossXsGltf,
       groundMossXsGltf,
       groundMossMdGltf,
@@ -4735,10 +5150,15 @@ async function init() {
       characterFbx,
       pistolFbx,
       loadedCharacterTexture,
-      loadedPistolTexture
+      loadedPistolTexture,
+      loadedBricksTopTexture,
+      loadedBricksSideTexture
     ] = await Promise.all([
       loadTracked('Demo scene', () => loadGLTF(WORLD_SCENES.demo.url)),
       loadTracked('Enemy test scene', () => loadGLTF(WORLD_SCENES.enemyTest.url)),
+      loadTracked('Level 1 scene', () => loadGLTF(WORLD_SCENES.levelOne.url)),
+      loadTracked('Level 2 scene', () => loadGLTF(WORLD_SCENES.levelTwo.url)),
+      loadTracked('Level 3 scene', () => loadGLTF(WORLD_SCENES.levelThree.url)),
       loadTracked('Block moss XS', () => loadGLTF(blockMossXsUrl)),
       loadTracked('Ground moss XS', () => loadGLTF(groundMossXsUrl)),
       loadTracked('Ground moss MD', () => loadGLTF(groundMossMdUrl)),
@@ -4760,6 +5180,8 @@ async function init() {
       loadTracked('Pistol', () => loadFBX(pistolUrl)),
       loadTracked('Character texture', () => loadTexture(characterTextureUrl)),
       loadTracked('Pistol texture', () => loadTexture(pistolTextureUrl)),
+      loadTracked('Bricks top texture', () => loadTexture(bricksTopTextureUrl)),
+      loadTracked('Bricks side texture', () => loadTexture(bricksSideTextureUrl)),
       ...AUDIO_PRELOAD_URLS.map((url, index) =>
         loadTracked(`Sound ${index + 1}`, () => loadBinaryAsset(url))
       ),
@@ -4770,10 +5192,15 @@ async function init() {
 
     characterTexture = prepareVoxelTexture(loadedCharacterTexture);
     pistolTexture = prepareVoxelTexture(loadedPistolTexture);
+    bricksTopTexture = prepareWorldTexture(loadedBricksTopTexture);
+    bricksSideTexture = prepareWorldTexture(loadedBricksSideTexture);
     loadedWorldTemplates.demo = worldGltf.scene;
     loadedWorldTemplates.enemyTest = enemyTestWorldGltf.scene;
-    worldSceneFactories[MENU_SCENE_TWO_KEY] = () =>
-      createMenuSceneTwoWorld({
+    loadedWorldTemplates.levelOne = levelOneWorldGltf.scene;
+    loadedWorldTemplates.levelTwo = levelTwoWorldGltf.scene;
+    loadedWorldTemplates.levelThree = levelThreeWorldGltf.scene;
+    worldSceneFactories[INTRO_SCENE_KEY] = () =>
+      createIntroSceneWorld({
         blockMossXs: blockMossXsGltf.scene,
         gate: gateGltf.scene,
         groundMossMd: groundMossMdGltf.scene,
@@ -4793,8 +5220,8 @@ async function init() {
     enemyTemplates.electricBall = electricBallGltf.scene;
     enemyTemplates.crystalBallLightning = crystalBallLightningGltf.scene;
 
-    for (const template of Object.values(enemyTemplates)) {
-      prepareEnemyTemplate(template);
+    for (const [enemyKey, template] of Object.entries(enemyTemplates)) {
+      prepareEnemyTemplate(enemyKey, template);
     }
 
     addCharacterModel(characterFbx);
@@ -4813,7 +5240,7 @@ async function init() {
     updateCamera(0);
     updatePlayerVisual();
     updateHud();
-    openMenuSceneView(MENU_SCENE_TWO_KEY);
+    openMenuSceneView(INTRO_SCENE_KEY);
     refreshHudMessage();
     renderer.setAnimationLoop(animate);
   } catch (error) {
@@ -5006,7 +5433,7 @@ statusOverlay.addEventListener('click', (event) => {
   }
 
   if (action === 'home') {
-    void openMenuSceneViewWithTransition(MENU_SCENE_TWO_KEY);
+    void openMenuSceneViewWithTransition(INTRO_SCENE_KEY);
   }
 });
 
@@ -5036,8 +5463,8 @@ startScreen.addEventListener('click', (event) => {
   }
 
   const action = event.target.closest('[data-start-action]')?.dataset.startAction;
-  if (action === 'show-menu-scene-two') {
-    void openMenuSceneViewWithTransition(MENU_SCENE_TWO_KEY);
+  if (action === 'show-intro-scene') {
+    void openMenuSceneViewWithTransition(INTRO_SCENE_KEY);
     return;
   }
 
@@ -5069,25 +5496,6 @@ controlsCloseButton.addEventListener('click', () => {
 controlsPopup.addEventListener('click', (event) => {
   if (event.target === controlsPopup) {
     setControlsPopupOpen(false);
-    return;
-  }
-
-  const levelButton = event.target.closest('[data-controls-level]');
-  if (levelButton) {
-    selectedStartLevelIndex = Number(levelButton.dataset.controlsLevel);
-    updateStartScreenSelectionUi();
-    renderControlsPopup();
-    return;
-  }
-
-  const sceneButton = event.target.closest('[data-controls-scene]');
-  if (sceneButton) {
-    const nextSceneKey = sceneButton.dataset.controlsScene;
-    if (getPlayableSceneConfig(nextSceneKey)) {
-      selectedStartSceneKey = nextSceneKey;
-      updateStartScreenSelectionUi();
-      renderControlsPopup();
-    }
   }
 });
 
@@ -5175,7 +5583,7 @@ pauseMenu.addEventListener('click', (event) => {
   }
 
   if (action === 'home') {
-    void openMenuSceneViewWithTransition(MENU_SCENE_TWO_KEY);
+    void openMenuSceneViewWithTransition(INTRO_SCENE_KEY);
     return;
   }
 });

@@ -23,6 +23,105 @@ const COMMON_ARENA_POSITIONS = [
   [0, 0, 5.2]
 ];
 
+const LEVEL_ONE_SPIKED_POSITIONS = [
+  [-3.5, 2.57, 30],
+  [3.5, 2.57, 34]
+];
+
+const LEVEL_TWO_ENEMY_CONFIGS = [
+  {
+    id: 'spiked-1',
+    type: 'spiked',
+    enemyKey: 'spikedBall',
+    position: [-0.192, 1.479, 16.956],
+    hp: 100,
+    damage: 1,
+    detectionRadius: 11,
+    speed: 2.15,
+    attackSpeed: 3.35
+  },
+  {
+    id: 'spiked-2',
+    type: 'spiked',
+    enemyKey: 'spikedBall',
+    position: [6.808, 1.358, 12.092],
+    hp: 100,
+    damage: 1,
+    detectionRadius: 11,
+    speed: 2.15,
+    attackSpeed: 3.35
+  },
+  {
+    id: 'fire-1',
+    type: 'fire',
+    enemyKey: 'fireSun',
+    position: [27, 6.368, 0],
+    hp: 100,
+    damage: 1,
+    projectileDamage: 1,
+    detectionRadius: 13,
+    speed: 1.8,
+    attackSpeed: 2.5,
+    fireRate: 1.45,
+    projectileCount: 2,
+    preferHighest: true
+  }
+];
+
+const LEVEL_THREE_ENEMY_CONFIGS = [
+  {
+    id: 'spiked-1',
+    type: 'spiked',
+    enemyKey: 'spikedBall',
+    position: [-4.5, 0.55, 4.5],
+    hp: 100,
+    damage: 1,
+    detectionRadius: 11,
+    speed: 2.15,
+    attackSpeed: 3.35
+  },
+  {
+    id: 'spiked-2',
+    type: 'spiked',
+    enemyKey: 'spikedBall',
+    position: [4.2, 0.55, 30.1],
+    hp: 100,
+    damage: 1,
+    detectionRadius: 11,
+    speed: 2.15,
+    attackSpeed: 3.35
+  },
+  {
+    id: 'fire-1',
+    type: 'fire',
+    enemyKey: 'fireSun',
+    position: [0, 0.55, 30.138],
+    hp: 100,
+    damage: 1,
+    projectileDamage: 1,
+    detectionRadius: 13,
+    speed: 1.8,
+    attackSpeed: 2.5,
+    fireRate: 1.45,
+    projectileCount: 2
+  },
+  {
+    id: 'lava-1',
+    type: 'lava',
+    enemyKey: 'lavaBall',
+    position: [-32.75, 0.55, 30.1],
+    hp: 120,
+    damage: 1,
+    projectileDamage: 1,
+    detectionRadius: 10.5,
+    speed: 2.0,
+    attackSpeed: 3.0,
+    lavaBurstInterval: 1.85,
+    projectileRadius: 0.64,
+    projectileLifetime: 12
+  }
+];
+
 function createEnemyConfigs(type, enemyKey, overrides = {}) {
   return COMMON_ARENA_POSITIONS.map((position, index) => ({
     id: `${type}-${index + 1}`,
@@ -52,18 +151,24 @@ export const LEVEL_CONFIGS = [
       { text: 'roundies', tone: 'yellow' },
       { text: ' came and proclaimed the world is a sphere. Eliminate all ' },
       { text: 'round objects', tone: 'yellow' },
-      { text: ' on a six sides of the World. Good luck, ' },
+      { text: '. Good luck, ' },
       { text: 'Square Dude', tone: 'pink' },
       { text: '.' }
     ],
-    sceneKey: 'enemyTest',
+    sceneKey: 'levelOne',
+    portalPosition: [0.01, 2.57, 0.066],
     soundtrack: roundCornersMusicUrl,
-    enemies: createEnemyConfigs('spiked', 'spikedBall', {
+    enemies: LEVEL_ONE_SPIKED_POSITIONS.map((position, index) => ({
+      id: `spiked-${index + 1}`,
+      type: 'spiked',
+      enemyKey: 'spikedBall',
+      position,
+      hp: 100,
       damage: 1,
       detectionRadius: 11,
       speed: 2.15,
       attackSpeed: 3.35
-    }),
+    })),
     availableUpgrades: ['maxHpPlusOne', 'magazinePlusOne']
   },
   {
@@ -77,17 +182,10 @@ export const LEVEL_CONFIGS = [
       { text: 'Square Dude', tone: 'pink' },
       { text: '. We need this world square' }
     ],
-    sceneKey: 'enemyTest',
+    sceneKey: 'levelTwo',
+    portalPosition: [30.392, 5.033, 0],
     soundtrack: roundCornersMusicUrl,
-    enemies: createEnemyConfigs('fire', 'fireSun', {
-      hp: 100,
-      damage: 1,
-      projectileDamage: 1,
-      detectionRadius: 13,
-      speed: 1.8,
-      attackSpeed: 2.5,
-      fireRate: 1.45
-    }),
+    enemies: LEVEL_TWO_ENEMY_CONFIGS,
     availableUpgrades: ['pistolDamagePlus', 'shockwaveUnlock']
   },
   {
@@ -101,17 +199,10 @@ export const LEVEL_CONFIGS = [
       { text: 'Artemis-2', tone: 'yellow' },
       { text: ' recently mission?' }
     ],
-    sceneKey: 'enemyTest',
+    sceneKey: 'levelThree',
+    portalPosition: [0, 0.55, 0],
     soundtrack: roundCornersMusicUrl,
-    enemies: createEnemyConfigs('lava', 'lavaBall', {
-      hp: 120,
-      damage: 1,
-      projectileDamage: 1,
-      detectionRadius: 10.5,
-      speed: 2.0,
-      attackSpeed: 3.0,
-      lavaBurstInterval: 1.85
-    }),
+    enemies: LEVEL_THREE_ENEMY_CONFIGS,
     availableUpgrades: ['reloadSpeedPlus', 'jumpPlus']
   },
   {
@@ -178,5 +269,5 @@ export const LEVEL_CONFIGS = [
   }
 ];
 
-export const ENEMY_LEVELS = LEVEL_CONFIGS;
+export const ENEMY_LEVELS = LEVEL_CONFIGS.slice(0, 3);
 export const DEFAULT_LEVEL_INDEX = 0;

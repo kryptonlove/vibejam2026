@@ -10,7 +10,7 @@ const tempVectorC = new THREE.Vector3();
 const tempVectorD = new THREE.Vector3();
 const tempNormalMatrix = new THREE.Matrix3();
 
-export function findGroundPointAt({ worldBounds, worldMeshes, x, z, normalThreshold = 0.5 }) {
+export function findGroundPointAt({ worldBounds, worldMeshes, x, z, normalThreshold = 0.5, preferHighest = false }) {
   if (worldBounds.isEmpty() || worldMeshes.length === 0) {
     return null;
   }
@@ -21,7 +21,11 @@ export function findGroundPointAt({ worldBounds, worldMeshes, x, z, normalThresh
 
   const intersections = raycaster.intersectObjects(worldMeshes, false);
 
-  for (let i = intersections.length - 1; i >= 0; i -= 1) {
+  const startIndex = preferHighest ? 0 : intersections.length - 1;
+  const endIndex = preferHighest ? intersections.length : -1;
+  const step = preferHighest ? 1 : -1;
+
+  for (let i = startIndex; i !== endIndex; i += step) {
     const hit = intersections[i];
     if (!hit.face) {
       continue;
@@ -129,6 +133,19 @@ export function getSceneSpawnPoint({
   playerCapsuleTop
 }) {
   const sceneConfig = worldScenes[sceneKey];
+  if (Array.isArray(sceneConfig?.spawnPosition)) {
+    const [x = 0, y = 0, z = 0] = sceneConfig.spawnPosition;
+    const grounded = findGroundPointAt({
+      worldBounds,
+      worldMeshes,
+      x,
+      z,
+      normalThreshold: 0.4,
+      preferHighest: true
+    });
+    return grounded ?? new THREE.Vector3(x, y, z);
+  }
+
   const spawnNodeName = sceneConfig?.spawnNodeName;
 
   if (spawnNodeName && currentWorldRoot) {

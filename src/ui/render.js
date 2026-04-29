@@ -143,7 +143,7 @@ export function updateStartScreenSelectionUi(
   ui.startSummaryPreviewEl.textContent =
     `Preview · ${worldScenes[startScreenPreviewSceneKey]?.label ?? startScreenPreviewSceneKey}`;
   if (ui.startMenuSceneButton) {
-    ui.startMenuSceneButton.textContent = 'View Menu Scene 2';
+    ui.startMenuSceneButton.textContent = 'View Intro Scene';
   }
 
   for (const button of ui.startTabButtons) {
@@ -179,18 +179,8 @@ export function hideLoaderScreen(ui) {
   ui.loaderScreen.hidden = true;
 }
 
-function formatCameraPosition(position) {
-  if (!position) {
-    return '';
-  }
-
-  return `CAM X ${position.x.toFixed(2)} Y ${position.y.toFixed(2)} Z ${position.z.toFixed(2)}`;
-}
-
-export function updateFps(ui, fps, cameraPosition) {
-  const fpsText = `FPS ${Math.round(fps)}`;
-  const cameraText = formatCameraPosition(cameraPosition);
-  ui.fpsEl.textContent = cameraText ? `${fpsText}\n${cameraText}` : fpsText;
+export function updateFps(ui, fps) {
+  ui.fpsEl.textContent = `${Math.round(fps)}`;
 }
 
 export function updateHud(
