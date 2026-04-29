@@ -157,6 +157,7 @@ export const LEVEL_CONFIGS = [
     ],
     sceneKey: 'levelOne',
     portalPosition: [0.01, 2.57, 0.066],
+    vibeJamPortalPosition: [0, 2.57, 36],
     soundtrack: roundCornersMusicUrl,
     enemies: LEVEL_ONE_SPIKED_POSITIONS.map((position, index) => ({
       id: `spiked-${index + 1}`,
@@ -184,6 +185,7 @@ export const LEVEL_CONFIGS = [
     ],
     sceneKey: 'levelTwo',
     portalPosition: [30.392, 5.033, 0],
+    vibeJamPortalPosition: [30.392, 5.033, 0],
     soundtrack: roundCornersMusicUrl,
     enemies: LEVEL_TWO_ENEMY_CONFIGS,
     availableUpgrades: ['pistolDamagePlus', 'shockwaveUnlock']
@@ -201,6 +203,7 @@ export const LEVEL_CONFIGS = [
     ],
     sceneKey: 'levelThree',
     portalPosition: [0, 0.55, 0],
+    vibeJamPortalPosition: [0, 0.55, 30.138],
     soundtrack: roundCornersMusicUrl,
     enemies: LEVEL_THREE_ENEMY_CONFIGS,
     availableUpgrades: ['reloadSpeedPlus', 'jumpPlus']

@@ -285,6 +285,13 @@ function wait(ms) {
 }
 
 const SCENE_FADE_DURATION = 850;
+const VIBEJAM_PORTAL_URL = 'https://vibej.am/portal/2026';
+const VIBEJAM_GAME_REF = 'hiptobesquare.diggle.fun';
+const VIBEJAM_DEFAULT_USERNAME = 'andreykr';
+const VIBEJAM_DEFAULT_COLOR = 'yellow';
+const urlParams = new URLSearchParams(window.location.search);
+const incomingVibeJamPortal = urlParams.has('portal');
+const incomingVibeJamRef = urlParams.get('ref') ?? '';
 let fadeVisible = false;
 
 function setFadeVisible(visible) {
@@ -1569,6 +1576,10 @@ let pendingUpgradeIds = [];
 let portalActive = false;
 let portalTransitionActive = false;
 let portalAudioSequenceId = 0;
+let vibeJamPortalGroup = null;
+let vibeJamExitPortal = null;
+let vibeJamStartPortal = null;
+let vibeJamPortalRedirecting = false;
 let deathScreenTimer = 0;
 let shockwaveCooldownTimer = 0;
 let audioEnabled = true;
@@ -1746,6 +1757,7 @@ const enemyProjectiles = [];
 const shockwaveEffects = [];
 let portalGroup = null;
 let portalMaterial = null;
+const vibeJamPortalObjects = [];
 
 const enemyProjectileGeometry = new THREE.SphereGeometry(0.16, 14, 10);
 const fireProjectileMaterial = new THREE.MeshStandardMaterial({
@@ -2136,6 +2148,7 @@ function clearGlowCubes() {
 
 function clearWorldScene() {
   clearPortal();
+  clearVibeJamPortals();
   clearEnemyProjectiles();
   clearShockwaveEffects();
   const nextState = clearWorldSceneWorld({
@@ -4268,6 +4281,328 @@ function clearPortal() {
   portalMaterial = null;
 }
 
+function disposeVibeJamPortalObject(object) {
+  object.traverse((child) => {
+    if (child.isMesh || child.isPoints) {
+      child.geometry?.dispose?.();
+
+      if (Array.isArray(child.material)) {
+        child.material.forEach((material) => {
+          material.map?.dispose?.();
+          material.dispose?.();
+        });
+      } else {
+        child.material?.map?.dispose?.();
+        child.material?.dispose?.();
+      }
+    }
+  });
+}
+
+function clearVibeJamPortals() {
+  vibeJamPortalRedirecting = false;
+
+  if (vibeJamPortalGroup) {
+    disposeVibeJamPortalObject(vibeJamPortalGroup);
+    scene.remove(vibeJamPortalGroup);
+  }
+
+  vibeJamPortalGroup = null;
+  vibeJamExitPortal = null;
+  vibeJamStartPortal = null;
+  vibeJamPortalObjects.length = 0;
+}
+
+function createVibeJamPortalLabel(text, color) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 96;
+
+  const context = canvas.getContext('2d');
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = color;
+  context.font = '42px Tiny5, monospace';
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
+  context.fillText(text, canvas.width / 2, canvas.height / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+
+  const label = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.9, 0.54),
+    new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    })
+  );
+  label.position.y = 1.35;
+  return label;
+}
+
+function createVibeJamPortalParticles(color) {
+  const particleCount = 180;
+  const positions = new Float32Array(particleCount * 3);
+  const colors = new Float32Array(particleCount * 3);
+  const portalColor = new THREE.Color(color);
+
+  for (let index = 0; index < particleCount; index += 1) {
+    const offset = index * 3;
+    const angle = Math.random() * Math.PI * 2;
+    const radius = 0.82 + Math.random() * 0.22;
+    positions[offset] = Math.cos(angle) * radius;
+    positions[offset + 1] = Math.sin(angle) * radius;
+    positions[offset + 2] = THREE.MathUtils.randFloatSpread(0.14);
+    colors[offset] = portalColor.r;
+    colors[offset + 1] = portalColor.g;
+    colors[offset + 2] = portalColor.b;
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+  return new THREE.Points(
+    geometry,
+    new THREE.PointsMaterial({
+      size: 0.045,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.72,
+      depthWrite: false
+    })
+  );
+}
+
+function faceVibeJamPortalToward(portal, target) {
+  tempVectorA.subVectors(target, portal.group.position);
+  tempVectorA.y = 0;
+
+  if (tempVectorA.lengthSq() <= 0.001) {
+    return;
+  }
+
+  tempVectorA.normalize();
+  portal.group.rotation.y = Math.atan2(tempVectorA.x, tempVectorA.z);
+}
+
+function createVibeJamPortal({ type, position, label, color, secondaryColor }) {
+  const group = new THREE.Group();
+  group.name = `VibeJam${type === 'start' ? 'Start' : 'Exit'}Portal`;
+  group.position.copy(position).addScaledVector(UP, 1.18);
+
+  const circle = new THREE.Mesh(
+    new THREE.CircleGeometry(0.78, 80),
+    new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.38,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    })
+  );
+  group.add(circle);
+
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.82, 0.055, 12, 96),
+    new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.92
+    })
+  );
+  group.add(ring);
+
+  const outerRing = new THREE.Mesh(
+    new THREE.TorusGeometry(1.02, 0.025, 8, 96),
+    new THREE.MeshBasicMaterial({
+      color: secondaryColor,
+      transparent: true,
+      opacity: 0.74
+    })
+  );
+  group.add(outerRing);
+
+  const particles = createVibeJamPortalParticles(color);
+  group.add(particles);
+  group.add(createVibeJamPortalLabel(label, `#${color.toString(16).padStart(6, '0')}`));
+
+  const light = new THREE.PointLight(color, 2.4, 5.5, 2);
+  light.position.set(0, 0.2, 0.18);
+  group.add(light);
+
+  const portal = {
+    type,
+    group,
+    ring,
+    outerRing,
+    particles,
+    light,
+    baseY: group.position.y,
+    radius: 1.08
+  };
+
+  vibeJamPortalGroup.add(group);
+  vibeJamPortalObjects.push(portal);
+  return portal;
+}
+
+function getVibeJamGroundPoint(position) {
+  return (
+    findGroundPointAt(position.x, position.z, 0.45, true) ??
+    findGroundPointAt(position.x, position.z, 0.35, false) ??
+    position
+  );
+}
+
+function getCurrentLevelVibeJamExitPosition(sceneKey) {
+  const levelConfig = ENEMY_LEVELS.find((level) => level.sceneKey === sceneKey);
+  const configuredPosition = levelConfig?.vibeJamPortalPosition;
+
+  if (Array.isArray(configuredPosition)) {
+    const [x = 0, y = 0, z = 0] = configuredPosition;
+    return getVibeJamGroundPoint(new THREE.Vector3(x, y, z));
+  }
+
+  if (!worldBounds.isEmpty()) {
+    const x = THREE.MathUtils.lerp(worldBounds.min.x, worldBounds.max.x, 0.82);
+    const z = THREE.MathUtils.lerp(worldBounds.min.z, worldBounds.max.z, 0.82);
+    return getVibeJamGroundPoint(new THREE.Vector3(x, playerSpawn.y, z));
+  }
+
+  return playerSpawn.clone().add(new THREE.Vector3(4, 0, 4));
+}
+
+function getVibeJamStartPortalPosition() {
+  const preferred = playerSpawn.clone().add(new THREE.Vector3(2.2, 0, 0));
+  return getVibeJamGroundPoint(preferred);
+}
+
+function shouldShowVibeJamPortals(sceneKey = activeSceneKey) {
+  return WORLD_SCENES[sceneKey]?.playable !== false && sceneKey !== 'demo' && sceneKey !== 'enemyTest';
+}
+
+function setupVibeJamPortalsForScene(sceneKey = activeSceneKey) {
+  clearVibeJamPortals();
+
+  if (!shouldShowVibeJamPortals(sceneKey)) {
+    return;
+  }
+
+  vibeJamPortalGroup = new THREE.Group();
+  vibeJamPortalGroup.name = 'VibeJamPortals';
+  scene.add(vibeJamPortalGroup);
+
+  vibeJamExitPortal = createVibeJamPortal({
+    type: 'exit',
+    position: getCurrentLevelVibeJamExitPosition(sceneKey),
+    label: 'VIBE JAM PORTAL',
+    color: 0x00ff72,
+    secondaryColor: 0xb8ff6c
+  });
+  faceVibeJamPortalToward(vibeJamExitPortal, playerSpawn);
+
+  if (incomingVibeJamPortal && incomingVibeJamRef) {
+    vibeJamStartPortal = createVibeJamPortal({
+      type: 'start',
+      position: getVibeJamStartPortalPosition(),
+      label: 'RETURN PORTAL',
+      color: 0xff2f2f,
+      secondaryColor: 0xffa900
+    });
+    faceVibeJamPortalToward(vibeJamStartPortal, playerSpawn);
+  }
+}
+
+function appendParamsToUrl(url, params) {
+  const separator = url.includes('?') ? '&' : '?';
+  const query = params.toString();
+  return query ? `${url}${separator}${query}` : url;
+}
+
+function getVibeJamExitUrl() {
+  const params = new URLSearchParams(window.location.search);
+  params.set('portal', 'true');
+  params.set('ref', VIBEJAM_GAME_REF);
+
+  if (!params.has('username')) {
+    params.set('username', VIBEJAM_DEFAULT_USERNAME);
+  }
+
+  if (!params.has('color')) {
+    params.set('color', VIBEJAM_DEFAULT_COLOR);
+  }
+
+  params.set('speed', Math.max(1, Math.hypot(playerVelocity.x, playerVelocity.z)).toFixed(2));
+  params.set('hp', `${Math.max(1, Math.round((hp / Math.max(playerStats.maxHP, 1)) * 100))}`);
+  params.set('rotation_y', `${yaw}`);
+  return `${VIBEJAM_PORTAL_URL}?${params.toString()}`;
+}
+
+function getVibeJamReturnUrl() {
+  let url = incomingVibeJamRef;
+
+  if (!url) {
+    return '';
+  }
+
+  if (!/^https?:\/\//i.test(url)) {
+    url = `https://${url}`;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  params.delete('ref');
+  return appendParamsToUrl(url, params);
+}
+
+function redirectThroughVibeJamPortal(portalType) {
+  if (vibeJamPortalRedirecting) {
+    return;
+  }
+
+  const url = portalType === 'start' ? getVibeJamReturnUrl() : getVibeJamExitUrl();
+
+  if (!url) {
+    return;
+  }
+
+  vibeJamPortalRedirecting = true;
+  window.location.href = url;
+}
+
+function updateVibeJamPortals(deltaTime) {
+  if (!vibeJamPortalGroup || vibeJamPortalObjects.length === 0) {
+    return;
+  }
+
+  for (const portal of vibeJamPortalObjects) {
+    portal.ring.rotation.z += deltaTime * 1.8;
+    portal.outerRing.rotation.z -= deltaTime * 1.15;
+    portal.particles.rotation.z += deltaTime * 0.75;
+    portal.group.position.y = portal.baseY + Math.sin(simulationTime * 2.2 + portal.radius) * 0.04;
+    portal.light.intensity = 2.2 + Math.sin(simulationTime * 4.4) * 0.35;
+  }
+
+  if (vibeJamPortalRedirecting || (gameState !== 'playing' && gameState !== 'portal')) {
+    return;
+  }
+
+  const playerFoot = getPlayerFootPosition(tempVectorA);
+
+  for (const portal of vibeJamPortalObjects) {
+    tempVectorB.copy(portal.group.position);
+    tempVectorB.y = playerFoot.y;
+
+    if (playerFoot.distanceTo(tempVectorB) <= portal.radius) {
+      redirectThroughVibeJamPortal(portal.type);
+      return;
+    }
+  }
+}
+
 function createPortalMaterial() {
   return new THREE.ShaderMaterial({
     transparent: true,
@@ -5071,7 +5406,7 @@ function getSceneSpawnPoint(sceneKey) {
 }
 
 function applyWorldScene(sceneKey, { restartPlayer = true, startPlaying = true } = {}) {
-  applyWorldSceneWorld({
+  const applied = applyWorldSceneWorld({
     sceneKey,
     restartPlayer,
     createWorldSceneRoot,
@@ -5104,6 +5439,12 @@ function applyWorldScene(sceneKey, { restartPlayer = true, startPlaying = true }
       activeEnemyHudTarget = target;
     }
   });
+
+  if (applied) {
+    setupVibeJamPortalsForScene(sceneKey);
+  }
+
+  return applied;
 }
 
 async function init() {
@@ -5240,7 +5581,18 @@ async function init() {
     updateCamera(0);
     updatePlayerVisual();
     updateHud();
-    openMenuSceneView(INTRO_SCENE_KEY);
+
+    if (incomingVibeJamPortal) {
+      selectedStartLevelIndex = DEFAULT_LEVEL_INDEX;
+      resetRunStats();
+      runInProgress = true;
+      applyCurrentLevelConfig(DEFAULT_LEVEL_INDEX);
+      campaignSceneKey = currentLevelConfig.sceneKey ?? DEFAULT_CAMPAIGN_SCENE_KEY;
+      applyWorldScene(campaignSceneKey, { startPlaying: true });
+    } else {
+      openMenuSceneView(INTRO_SCENE_KEY);
+    }
+
     refreshHudMessage();
     renderer.setAnimationLoop(animate);
   } catch (error) {
@@ -5307,6 +5659,7 @@ function animate() {
   updateExplosionEffects(simulationDelta);
   updateShockwaveEffects(simulationDelta);
   updatePortal(simulationDelta);
+  updateVibeJamPortals(simulationDelta);
   updateMenuSceneEffects(simulationDelta, simulationTime);
   updateGlowCubes(simulationTime);
   updateCamera(simulationDelta);
