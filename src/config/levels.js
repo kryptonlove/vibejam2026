@@ -1,10 +1,13 @@
 import {
   crystalBallLightningUrl,
+  combatMusicUrl,
+  destroyMusicUrl,
   electricBallUrl,
   fireSunUrl,
   lavaBallUrl,
   magicBallUrl,
   roundCornersMusicUrl,
+  speedMusicUrl,
   spikedBallUrl
 } from './assets.js';
 
@@ -59,11 +62,12 @@ const LEVEL_TWO_ENEMY_CONFIGS = [
     hp: 100,
     damage: 1,
     projectileDamage: 1,
-    detectionRadius: 13,
+    detectionRadius: 18,
     speed: 1.8,
     attackSpeed: 2.5,
-    fireRate: 1.45,
-    projectileCount: 2,
+    fireRate: 0.72,
+    projectileCount: 1,
+    projectileSpeed: 14,
     preferHighest: true
   }
 ];
@@ -99,11 +103,12 @@ const LEVEL_THREE_ENEMY_CONFIGS = [
     hp: 100,
     damage: 1,
     projectileDamage: 1,
-    detectionRadius: 13,
+    detectionRadius: 18,
     speed: 1.8,
     attackSpeed: 2.5,
-    fireRate: 1.45,
-    projectileCount: 2
+    fireRate: 0.72,
+    projectileCount: 1,
+    projectileSpeed: 14
   },
   {
     id: 'lava-1',
@@ -119,6 +124,81 @@ const LEVEL_THREE_ENEMY_CONFIGS = [
     lavaBurstInterval: 1.85,
     projectileRadius: 0.64,
     projectileLifetime: 12
+  }
+];
+
+const LEVEL_FOUR_ENEMY_CONFIGS = [
+  {
+    id: 'spiked-1',
+    type: 'spiked',
+    enemyKey: 'spikedBall',
+    position: [-0.192, 1.479, 16.956],
+    hp: 100,
+    damage: 1,
+    detectionRadius: 12,
+    speed: 2.2,
+    attackSpeed: 3.45,
+    preferHighest: true
+  },
+  {
+    id: 'spiked-2',
+    type: 'spiked',
+    enemyKey: 'spikedBall',
+    position: [6.808, 1.358, 12.092],
+    hp: 100,
+    damage: 1,
+    detectionRadius: 12,
+    speed: 2.2,
+    attackSpeed: 3.45,
+    preferHighest: true
+  },
+  {
+    id: 'fire-1',
+    type: 'fire',
+    enemyKey: 'fireSun',
+    position: [27, 6.368, 0],
+    hp: 100,
+    damage: 1,
+    projectileDamage: 1,
+    detectionRadius: 19,
+    speed: 2.0,
+    attackSpeed: 2.7,
+    fireRate: 0.7,
+    projectileCount: 1,
+    projectileSpeed: 14.5,
+    preferHighest: true
+  },
+  {
+    id: 'lava-1',
+    type: 'lava',
+    enemyKey: 'lavaBall',
+    position: [20, 5.2, 8],
+    hp: 120,
+    damage: 1,
+    projectileDamage: 1,
+    detectionRadius: 12,
+    speed: 2.05,
+    attackSpeed: 3.1,
+    lavaBurstInterval: 1.85,
+    projectileRadius: 0.64,
+    projectileLifetime: 12,
+    preferHighest: true
+  },
+  {
+    id: 'lava-2',
+    type: 'lava',
+    enemyKey: 'lavaBall',
+    position: [17.6, 10, 30],
+    hp: 130,
+    damage: 1,
+    projectileDamage: 1,
+    detectionRadius: 13,
+    speed: 2.1,
+    attackSpeed: 3.2,
+    lavaBurstInterval: 1.95,
+    projectileRadius: 0.64,
+    projectileLifetime: 12,
+    preferHighest: true
   }
 ];
 
@@ -186,9 +266,9 @@ export const LEVEL_CONFIGS = [
     sceneKey: 'levelTwo',
     portalPosition: [30.392, 5.033, 0],
     vibeJamPortalPosition: [30.392, 5.033, 0],
-    soundtrack: roundCornersMusicUrl,
+    soundtrack: destroyMusicUrl,
     enemies: LEVEL_TWO_ENEMY_CONFIGS,
-    availableUpgrades: ['pistolDamagePlus', 'shockwaveUnlock']
+    availableUpgrades: ['pistolDamagePlus', 'fireRatePlus']
   },
   {
     number: 3,
@@ -204,28 +284,24 @@ export const LEVEL_CONFIGS = [
     sceneKey: 'levelThree',
     portalPosition: [0, 0.55, 0],
     vibeJamPortalPosition: [0, 0.55, 30.138],
-    soundtrack: roundCornersMusicUrl,
+    soundtrack: combatMusicUrl,
     enemies: LEVEL_THREE_ENEMY_CONFIGS,
     availableUpgrades: ['reloadSpeedPlus', 'jumpPlus']
   },
   {
     number: 4,
     label: 'Level 4',
-    enemyKey: 'magicBall',
-    enemyLabel: 'Magic Ball',
-    enemyPluralLabel: 'Magic Balls',
+    enemyKey: 'lavaBall',
+    enemyLabel: 'Lava Ball',
+    enemyPluralLabel: 'Mixed Roundies',
     cutsceneText: [
       { text: 'Look at them how they roll! In the name of squareness! It’s hip to be square!' }
     ],
-    sceneKey: 'enemyTest',
-    soundtrack: roundCornersMusicUrl,
-    enemies: createEnemyConfigs('magic', 'magicBall', {
-      hp: 130,
-      damage: 1,
-      detectionRadius: 11.5,
-      speed: 2.25,
-      attackSpeed: 3.35
-    }),
+    sceneKey: 'levelFour',
+    portalPosition: [17.6, 10, 30],
+    vibeJamPortalPosition: [17.6, 10, 30],
+    soundtrack: speedMusicUrl,
+    enemies: LEVEL_FOUR_ENEMY_CONFIGS,
     availableUpgrades: ['fireRatePlus', 'runBonusPlus']
   },
   {
@@ -246,7 +322,7 @@ export const LEVEL_CONFIGS = [
       speed: 2.35,
       attackSpeed: 3.55
     }),
-    availableUpgrades: ['walkSpeedPlus', 'shockwaveCooldownPlus']
+    availableUpgrades: ['walkSpeedPlus', 'magazinePlusOne']
   },
   {
     number: 6,
@@ -272,5 +348,5 @@ export const LEVEL_CONFIGS = [
   }
 ];
 
-export const ENEMY_LEVELS = LEVEL_CONFIGS.slice(0, 3);
+export const ENEMY_LEVELS = LEVEL_CONFIGS.slice(0, 4);
 export const DEFAULT_LEVEL_INDEX = 0;

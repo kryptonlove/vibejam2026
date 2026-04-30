@@ -56,6 +56,11 @@ export function syncScreenVisibility(ui, { startScreenOpen, menuSceneViewOpen, s
   ui.menuSceneHero.hidden = true;
   ui.menuSceneCameraPanel.hidden = true;
   ui.hud.hidden = startScreenOpen || menuSceneViewOpen || overlayGameplayState;
+  ui.fpsEl.hidden =
+    !sceneReady ||
+    startScreenOpen ||
+    menuSceneViewOpen ||
+    (gameState !== 'playing' && gameState !== 'paused' && gameState !== 'portal');
   ui.pauseControlEl.hidden =
     !sceneReady ||
     startScreenOpen ||
@@ -191,7 +196,6 @@ export function updateHud(
     maxHp,
     maxAmmo,
     levelProgressText,
-    enemyLabel,
     activeEnemyHudTarget,
     spikedEnemies,
     enemyMaxHp
@@ -202,7 +206,6 @@ export function updateHud(
   let nextActiveEnemyHudTarget = activeEnemyHudTarget;
 
   ui.levelValueEl.textContent = levelProgressText;
-  ui.enemyLabelEl.textContent = enemyLabel;
   updateSegmentCollection(ui.heartFillEls, hpPercent, { mode: 'clip-right' });
   updateSegmentCollection(ui.ammoSegmentEls, ammoPercent);
 
@@ -216,7 +219,7 @@ export function updateHud(
   if (nextActiveEnemyHudTarget && nextActiveEnemyHudTarget.alive && nextActiveEnemyHudTarget.healthHudTimer > 0) {
     const enemyPercent = clamp(nextActiveEnemyHudTarget.hp / enemyMaxHp, 0, 1);
     ui.enemyHudEl.hidden = false;
-    ui.enemyValueEl.textContent = `${Math.round(enemyPercent * 100)}%`;
+    ui.enemyValueEl.textContent = '';
     ui.enemyFillEl.style.width = `${enemyPercent * 100}%`;
   } else {
     nextActiveEnemyHudTarget = null;

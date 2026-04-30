@@ -1362,6 +1362,7 @@ const UI_STYLE = `
   }
 
   .upgrade-card {
+    position: relative;
     display: grid;
     place-items: center;
     align-content: center;
@@ -1369,18 +1370,39 @@ const UI_STYLE = `
     aspect-ratio: 1 / 1;
     min-height: 0;
     padding: 22px;
-    border: 5px solid #ffffff;
+    border: 0;
     border-radius: 0;
     background: transparent;
     color: #ffffff;
     text-align: center;
     cursor: pointer;
+    isolation: isolate;
+  }
+
+  .upgrade-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border: 5px solid #ffffff;
+    background: transparent;
+    transition:
+      transform 180ms ease,
+      border-color 180ms ease;
   }
 
   .upgrade-card.is-selected {
-    border-color: #07d4ff;
     background: transparent;
     color: #ffffff;
+  }
+
+  .upgrade-card.is-selected::before {
+    border-color: #07d4ff;
+  }
+
+  .upgrade-card > * {
+    position: relative;
+    z-index: 1;
   }
 
   .upgrade-card__title {
@@ -1485,7 +1507,7 @@ const UI_STYLE = `
   .hud__ammo-cell {
     position: relative;
     width: 23px;
-    height: 19px;
+    height: 23px;
     border: 3px solid #07d4ff;
     border-radius: 0;
     background: rgba(0, 0, 0, 0.86);
@@ -1514,7 +1536,7 @@ const UI_STYLE = `
   }
 
   .hud__enemy-card {
-    padding: 10px 14px 12px;
+    padding: 9px 12px;
     border: 3px solid #000;
     border-radius: 0;
     background: rgba(0, 0, 0, 0.82);
@@ -1523,9 +1545,12 @@ const UI_STYLE = `
   .hud__enemy-bar {
     position: relative;
     height: 14px;
-    margin-top: 6px;
     border: 3px solid #000;
     background: rgba(255, 255, 255, 0.12);
+  }
+
+  .hud__enemy-card .hud__label-row {
+    display: none;
   }
 
   .hud__fill--enemy {
@@ -1771,6 +1796,9 @@ const UI_STYLE = `
     .upgrade-card:is(:hover, :focus-visible) {
       position: relative;
       z-index: 2;
+    }
+
+    .upgrade-card:is(:hover, :focus-visible)::before {
       transform: scaleX(1.05);
     }
 

@@ -3,7 +3,7 @@ import * as THREE from 'three';
 export const FIRE_SUN_BLOOM_STRENGTH = 1.15;
 export const FIRE_SUN_BLOOM_RADIUS = 0.68;
 export const FIRE_SUN_BLOOM_THRESHOLD = 0.58;
-export const FIRE_SUN_FLOAT_HEIGHT = 0.22;
+export const FIRE_SUN_FLOAT_HEIGHT = 0.65;
 export const LAVA_BALL_BLOOM_STRENGTH = 0.98;
 export const LAVA_BALL_BLOOM_RADIUS = 0.5;
 export const LAVA_BALL_BLOOM_THRESHOLD = 0.48;
@@ -60,7 +60,7 @@ export const AMMO_RECHARGE_RATE = 18;
 export const AMMO_RECHARGE_DELAY = 0.3;
 export const SHOT_INTERVAL = 0.12;
 
-export const BULLET_SPEED = 48;
+export const BULLET_SPEED = 72;
 export const BULLET_LIFETIME = 3;
 export const BULLET_RADIUS = 0.09;
 export const SPIKED_ENEMY_TARGET_DIAMETER = 1.45;

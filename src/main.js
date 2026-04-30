@@ -320,10 +320,10 @@ async function fadeFromBlack(duration = SCENE_FADE_DURATION) {
 function resetRunStats() {
   Object.assign(playerStats, BASE_PLAYER_STATS);
   Object.assign(weaponStats, BASE_WEAPON_STATS);
-  Object.assign(abilityStats, BASE_ABILITY_STATS);
   hp = playerStats.maxHP;
   ammo = weaponStats.magazine;
-  shockwaveCooldownTimer = 0;
+  playerDamageCooldownTimer = 0;
+  setPlayerDamageBlink(false);
 }
 
 function getCurrentLevelEnemies() {
@@ -442,7 +442,6 @@ function renderControlsPopup() {
     ['Jump', 'Space'],
     ['Aim', 'Mouse'],
     ['Shoot', 'Left click'],
-    ['Shockwave', 'E'],
     ['Pause', 'P']
   ]
     .map(
@@ -520,20 +519,14 @@ function applyUpgrade(upgradeId) {
     } else if (upgrade.stat === 'reloadSpeed') {
       weaponStats.reloadSpeed *= 1 + upgrade.value;
     }
-  } else if (upgrade.type === 'ability') {
-    if (upgrade.stat === 'shockwave') {
-      abilityStats.shockwaveUnlocked = true;
-    } else if (upgrade.stat === 'shockwaveCooldown') {
-      abilityStats.shockwaveCooldown = Math.max(3, abilityStats.shockwaveCooldown * (1 + upgrade.value));
-    }
   }
 }
 
 const CUTSCENE_TYPE_INTERVAL = 56;
 const FINAL_CAMPAIGN_CUTSCENE = {
-  title: 'Final',
+  title: 'Final World',
   cutsceneText:
-    'This game was made by andreykr with the help of Three.js and Codex during vibejam 2026. Zero lines of code were written. If you enjoyed the game and want to see more levels and updates, follow me on Twitter.'
+    'You cleared Level 04. This game was made by andreykr with the help of Three.js and Codex during vibejam 2026. Zero lines of code were written. If you enjoyed the game and want to see more levels and updates, follow me on X.'
 };
 
 function normalizeCutsceneSegments(cutsceneText) {
@@ -1581,8 +1574,9 @@ let vibeJamExitPortal = null;
 let vibeJamStartPortal = null;
 let vibeJamPortalRedirecting = false;
 let deathScreenTimer = 0;
-let shockwaveCooldownTimer = 0;
-let audioEnabled = true;
+let playerDamageCooldownTimer = 0;
+let playerDamageBlinkApplied = false;
+let audioEnabled = false;
 let audioInteractionUnlocked = false;
 
 const BRICK_TILE_WORLD_SIZE = 5.4;
@@ -1598,6 +1592,7 @@ const WIN_MUSIC_VOLUME = 0.48;
 const UI_SFX_VOLUME = 0.21;
 const UI_HOVER_SFX_VOLUME = UI_SFX_VOLUME * 0.6;
 const EMPTY_SHOT_INTERVAL = 0.36;
+const PLAYER_DAMAGE_COOLDOWN = 2;
 const BASE_PLAYER_STATS = {
   maxHP: 3,
   maxWalkSpeed: WALK_ACCELERATION,
@@ -1610,13 +1605,8 @@ const BASE_WEAPON_STATS = {
   fireRate: 0.5,
   reloadSpeed: 1 / 1.5
 };
-const BASE_ABILITY_STATS = {
-  shockwaveUnlocked: false,
-  shockwaveCooldown: 10
-};
 const playerStats = { ...BASE_PLAYER_STATS };
 const weaponStats = { ...BASE_WEAPON_STATS };
-const abilityStats = { ...BASE_ABILITY_STATS };
 
 const menuMusicAudio = new Audio(menuMusicUrl);
 menuMusicAudio.loop = true;
@@ -1754,7 +1744,6 @@ let spikedEnemyVisualRadius = SPIKED_ENEMY_TARGET_DIAMETER * 0.5;
 let activeEnemyHudTarget = null;
 const explosionEffects = [];
 const enemyProjectiles = [];
-const shockwaveEffects = [];
 let portalGroup = null;
 let portalMaterial = null;
 const vibeJamPortalObjects = [];
@@ -2150,7 +2139,6 @@ function clearWorldScene() {
   clearPortal();
   clearVibeJamPortals();
   clearEnemyProjectiles();
-  clearShockwaveEffects();
   const nextState = clearWorldSceneWorld({
     scene,
     currentWorldRoot,
@@ -3395,13 +3383,88 @@ function getSceneSpawnYaw(sceneKey = activeSceneKey) {
   return Math.atan2(-deltaX, -deltaZ);
 }
 
-function damagePlayer(amount) {
+function applyDamageBlinkMaterial(material, active) {
+  if (!material) {
+    return;
+  }
+
+  if (!material.userData.damageBlinkBase) {
+    material.userData.damageBlinkBase = {
+      color: material.color?.clone?.() ?? null,
+      emissive: material.emissive?.clone?.() ?? null,
+      emissiveIntensity: material.emissiveIntensity ?? null
+    };
+  }
+
+  const base = material.userData.damageBlinkBase;
+  if (active) {
+    material.color?.set(0xffffff);
+    material.emissive?.set(0xffffff);
+    if (base.emissiveIntensity !== null) {
+      material.emissiveIntensity = Math.max(base.emissiveIntensity, 1.35);
+    }
+  } else {
+    if (base.color && material.color) {
+      material.color.copy(base.color);
+    }
+    if (base.emissive && material.emissive) {
+      material.emissive.copy(base.emissive);
+    }
+    if (base.emissiveIntensity !== null) {
+      material.emissiveIntensity = base.emissiveIntensity;
+    }
+  }
+
+  material.needsUpdate = true;
+}
+
+function setPlayerDamageBlink(active) {
+  if (playerDamageBlinkApplied === active || !avatarRoot) {
+    return;
+  }
+
+  playerDamageBlinkApplied = active;
+  avatarRoot.traverse((child) => {
+    if (!child.isMesh || !child.material) {
+      return;
+    }
+
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    for (const material of materials) {
+      applyDamageBlinkMaterial(material, active);
+    }
+  });
+}
+
+function updatePlayerDamageCooldown(deltaTime) {
+  if (playerDamageCooldownTimer <= 0) {
+    setPlayerDamageBlink(false);
+    return;
+  }
+
+  playerDamageCooldownTimer = Math.max(0, playerDamageCooldownTimer - deltaTime);
+  if (playerDamageCooldownTimer <= 0) {
+    setPlayerDamageBlink(false);
+    return;
+  }
+
+  setPlayerDamageBlink(Math.sin(simulationTime * 28) > 0);
+}
+
+function damagePlayer(amount, { ignoreCooldown = false } = {}) {
+  if (hp <= 0 || (!ignoreCooldown && playerDamageCooldownTimer > 0)) {
+    return hp;
+  }
+
   const previousHp = hp;
   hp = damagePlayerPlayer({ maxHp: playerStats.maxHP }, hp, amount);
 
-  if (hp < previousHp && hp > 0) {
+  if (!ignoreCooldown && hp < previousHp && hp > 0) {
+    playerDamageCooldownTimer = PLAYER_DAMAGE_COOLDOWN;
     playPlayerHitSfx();
   }
+
+  return hp;
 }
 
 function applyCurrentLevelConfig(levelIndex) {
@@ -3521,7 +3584,7 @@ async function retryCurrentLevel() {
   requestGamePointerLock();
 }
 
-function completeLevel() {
+function completeLevel(portalPosition = null) {
   if (gameState !== 'playing') {
     return;
   }
@@ -3532,7 +3595,7 @@ function completeLevel() {
   clearInputState();
   clearBullets();
   clearEnemyProjectiles();
-  openLevelPortal();
+  openLevelPortal(portalPosition);
   playPortalOpenSequence();
   refreshHudMessage();
 }
@@ -3586,18 +3649,21 @@ async function handlePortalEntered() {
 }
 
 function killPlayer() {
-  if (gameState !== 'playing') {
+  if (gameState !== 'playing' && gameState !== 'portal') {
     return;
   }
 
   gameState = 'dying';
   hp = 0;
   deathScreenTimer = 2;
+  playerDamageCooldownTimer = 0;
+  setPlayerDamageBlink(false);
   triggerHeld = false;
   playerVelocity.set(0, 0, 0);
   clearInputState();
   clearBullets();
   clearEnemyProjectiles();
+  clearPortal();
   playPlayerDeathSfx();
   stopWinMusic();
   stopLevelSoundtrack();
@@ -3614,7 +3680,6 @@ function restartGame({ startPlaying = true } = {}) {
   clearBullets();
   clearEnemyProjectiles();
   clearExplosionEffects();
-  clearShockwaveEffects();
   clearPortal();
   hp = playerStats.maxHP;
   ammo = weaponStats.magazine;
@@ -3631,7 +3696,8 @@ function restartGame({ startPlaying = true } = {}) {
   lastEmptyShotAt = -Infinity;
   muzzleFlashTimer = 0;
   deathScreenTimer = 0;
-  shockwaveCooldownTimer = 0;
+  playerDamageCooldownTimer = 0;
+  setPlayerDamageBlink(false);
   clearInputState();
   respawnPlayer(true);
   resetSpikedEnemies();
@@ -3913,7 +3979,9 @@ function damageSpikedEnemy(enemyInstance, impactPoint, damage = weaponStats.dama
       spawnExplosion,
       spikedEnemies,
       completeLevel,
-      tempVectorA
+      tempVectorA,
+      tempVectorB,
+      tempVectorC
     },
     enemyInstance,
     impactPoint,
@@ -4184,81 +4252,6 @@ function updateEnemyProjectiles(deltaTime) {
     projectile.mesh.rotation.x += deltaTime * 5;
     projectile.mesh.rotation.y += deltaTime * 7;
     projectile.light.intensity = 2.2 + Math.sin((simulationTime + projectile.age) * 18) * 0.35;
-  }
-}
-
-function triggerShockwave() {
-  if (!abilityStats.shockwaveUnlocked || shockwaveCooldownTimer > 0 || gameState !== 'playing') {
-    return;
-  }
-
-  shockwaveCooldownTimer = abilityStats.shockwaveCooldown;
-  const origin = getPlayerFootPosition(tempVectorA).clone();
-  origin.y += 0.08;
-
-  const geometry = new THREE.RingGeometry(0.25, 0.32, 72);
-  const material = new THREE.MeshBasicMaterial({
-    color: 0x00b872,
-    transparent: true,
-    opacity: 0.8,
-    side: THREE.DoubleSide,
-    depthWrite: false
-  });
-  const ring = new THREE.Mesh(geometry, material);
-  ring.rotation.x = -Math.PI * 0.5;
-  ring.position.copy(origin);
-  scene.add(ring);
-  shockwaveEffects.push({ ring, age: 0, lifetime: 0.55, radius: 0.25 });
-
-  for (const enemyInstance of spikedEnemies) {
-    if (!enemyInstance.alive) {
-      continue;
-    }
-
-    const distance = enemyInstance.collider.center.distanceTo(origin);
-    if (distance > 4.2) {
-      continue;
-    }
-
-    const damage = weaponStats.damage * 1.35;
-    damageSpikedEnemy(enemyInstance, origin, damage);
-    tempVectorB.subVectors(enemyInstance.collider.center, origin).setY(0);
-    if (tempVectorB.lengthSq() > 0.001) {
-      tempVectorB.normalize();
-      enemyInstance.velocity.addScaledVector(tempVectorB, 5.4);
-      enemyInstance.velocity.y = Math.max(enemyInstance.velocity.y, 3.2);
-    }
-  }
-}
-
-function updateShockwaveEffects(deltaTime) {
-  shockwaveCooldownTimer = Math.max(0, shockwaveCooldownTimer - deltaTime);
-
-  for (let i = shockwaveEffects.length - 1; i >= 0; i -= 1) {
-    const effect = shockwaveEffects[i];
-    effect.age += deltaTime;
-    const progress = THREE.MathUtils.clamp(effect.age / effect.lifetime, 0, 1);
-
-    if (progress >= 1) {
-      effect.ring.material.dispose();
-      effect.ring.geometry.dispose();
-      scene.remove(effect.ring);
-      shockwaveEffects.splice(i, 1);
-      continue;
-    }
-
-    const scale = THREE.MathUtils.lerp(1, 13, progress);
-    effect.ring.scale.setScalar(scale);
-    effect.ring.material.opacity = 0.8 * (1 - progress);
-  }
-}
-
-function clearShockwaveEffects() {
-  while (shockwaveEffects.length > 0) {
-    const effect = shockwaveEffects.pop();
-    effect.ring.material.dispose();
-    effect.ring.geometry.dispose();
-    scene.remove(effect.ring);
   }
 }
 
@@ -4633,11 +4626,15 @@ function createPortalMaterial() {
   });
 }
 
-function openLevelPortal() {
+function openLevelPortal(portalPosition = null) {
   clearPortal();
   let groundPoint = null;
 
-  if (Array.isArray(currentLevelConfig.portalPosition)) {
+  if (portalPosition?.isVector3) {
+    groundPoint =
+      findGroundPointAt(portalPosition.x, portalPosition.z, 0.45, true) ??
+      portalPosition.clone();
+  } else if (Array.isArray(currentLevelConfig.portalPosition)) {
     const [x = 0, y = 0, z = 0] = currentLevelConfig.portalPosition;
     groundPoint = findGroundPointAt(x, z, 0.45, true) ?? new THREE.Vector3(x, y, z);
   } else {
@@ -5009,12 +5006,12 @@ function updateCamera(deltaTime = 0) {
 }
 
 function handleWorldBounds() {
-  if (gameState !== 'playing') {
+  if (gameState !== 'playing' && gameState !== 'portal') {
     return;
   }
 
   if (playerCollider.end.y < worldFloor - 6) {
-    damagePlayer(24);
+    damagePlayer(24, { ignoreCooldown: true });
 
     if (hp <= 0) {
       killPlayer();
@@ -5239,6 +5236,19 @@ function applyLevelThreeBrickTextures(root) {
   });
 }
 
+function applyLevelFourBrickTextures(root) {
+  applyBrickTextures(root, bricksTopTexture, bricksTopTexture, {
+    extraTopMaterialNames: ['platformground', 'material'],
+    extraTopMeshNames: ['cube'],
+    generateUvForMeshNames: ['cube'],
+    generateUvForMaterialNames: ['material'],
+    generatedUvTileSize: BRICK_TILE_WORLD_SIZE,
+    forceGenerateUv: true,
+    topMapOptions: { repeat: [1, 1] },
+    sideMapOptions: { repeat: [1, 1] }
+  });
+}
+
 function isBrickPlatformObject(object) {
   const objectName = object.name?.toLowerCase() ?? '';
   const geometryName = object.geometry?.name?.toLowerCase() ?? '';
@@ -5291,7 +5301,7 @@ function expandBrickPlatformInstances(root) {
 }
 
 function addWorldScene(root, collisionRoot = root) {
-  if (activeSceneKey === 'levelThree') {
+  if (activeSceneKey === 'levelThree' || activeSceneKey === 'levelFour') {
     expandBrickPlatformInstances(root);
   }
 
@@ -5306,6 +5316,8 @@ function addWorldScene(root, collisionRoot = root) {
     applyLevelTwoBrickTextures(root);
   } else if (activeSceneKey === 'levelThree') {
     applyLevelThreeBrickTextures(root);
+  } else if (activeSceneKey === 'levelFour') {
+    applyLevelFourBrickTextures(root);
   }
   currentCollisionRoot = nextState.currentCollisionRoot;
   worldFloor = nextState.worldFloor;
@@ -5449,7 +5461,7 @@ function applyWorldScene(sceneKey, { restartPlayer = true, startPlaying = true }
 
 async function init() {
   try {
-    loaderState.total = 28 + AUDIO_PRELOAD_URLS.length + UI_IMAGE_PRELOAD_URLS.length;
+    loaderState.total = 29 + AUDIO_PRELOAD_URLS.length + UI_IMAGE_PRELOAD_URLS.length;
     loaderState.loaded = 0;
     showLoaderScreen(
       'Loading Assets',
@@ -5471,6 +5483,7 @@ async function init() {
       levelOneWorldGltf,
       levelTwoWorldGltf,
       levelThreeWorldGltf,
+      levelFourWorldGltf,
       blockMossXsGltf,
       groundMossXsGltf,
       groundMossMdGltf,
@@ -5500,6 +5513,7 @@ async function init() {
       loadTracked('Level 1 scene', () => loadGLTF(WORLD_SCENES.levelOne.url)),
       loadTracked('Level 2 scene', () => loadGLTF(WORLD_SCENES.levelTwo.url)),
       loadTracked('Level 3 scene', () => loadGLTF(WORLD_SCENES.levelThree.url)),
+      loadTracked('Level 4 scene', () => loadGLTF(WORLD_SCENES.levelFour.url)),
       loadTracked('Block moss XS', () => loadGLTF(blockMossXsUrl)),
       loadTracked('Ground moss XS', () => loadGLTF(groundMossXsUrl)),
       loadTracked('Ground moss MD', () => loadGLTF(groundMossMdUrl)),
@@ -5540,6 +5554,7 @@ async function init() {
     loadedWorldTemplates.levelOne = levelOneWorldGltf.scene;
     loadedWorldTemplates.levelTwo = levelTwoWorldGltf.scene;
     loadedWorldTemplates.levelThree = levelThreeWorldGltf.scene;
+    loadedWorldTemplates.levelFour = levelFourWorldGltf.scene;
     worldSceneFactories[INTRO_SCENE_KEY] = () =>
       createIntroSceneWorld({
         blockMossXs: blockMossXsGltf.scene,
@@ -5657,7 +5672,7 @@ function animate() {
   updateCharacterAnimation(simulationDelta);
   updateWeapon(simulationDelta);
   updateExplosionEffects(simulationDelta);
-  updateShockwaveEffects(simulationDelta);
+  updatePlayerDamageCooldown(simulationDelta);
   updatePortal(simulationDelta);
   updateVibeJamPortals(simulationDelta);
   updateMenuSceneEffects(simulationDelta, simulationTime);
@@ -5673,7 +5688,13 @@ function animate() {
 document.addEventListener('keydown', (event) => {
   keyStates[event.code] = true;
 
-  if (event.code === 'Space') {
+  if (
+    event.code === 'Space' ||
+    event.code === 'ArrowUp' ||
+    event.code === 'ArrowDown' ||
+    event.code === 'ArrowLeft' ||
+    event.code === 'ArrowRight'
+  ) {
     event.preventDefault();
   }
 
@@ -5687,10 +5708,6 @@ document.addEventListener('keydown', (event) => {
     }
   }
 
-  if (event.code === 'KeyE' && !event.repeat) {
-    event.preventDefault();
-    triggerShockwave();
-  }
 });
 
 document.addEventListener('keyup', (event) => {
@@ -5739,7 +5756,6 @@ renderer.domElement.addEventListener('mousedown', (event) => {
     return;
   }
 
-  triggerShockwave();
   triggerHeld = true;
 });
 

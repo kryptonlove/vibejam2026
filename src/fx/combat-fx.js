@@ -2,6 +2,8 @@ import * as THREE from 'three';
 
 const AIM_DISTANCE = 240;
 const ENEMY_AIM_RADIUS_MULTIPLIER = 1.3;
+const BULLET_MUZZLE_VERTICAL_OFFSET = 0.18;
+const MIN_WORLD_AIM_DISTANCE_FROM_MUZZLE = 2.4;
 const tempAimSphere = new THREE.Sphere();
 const tempAimPoint = new THREE.Vector3();
 const tempBulletLine = new THREE.Line3();
@@ -263,6 +265,7 @@ export function tryFire(
   const nextLastShotAt = now;
 
   getAnchorWorldPosition(muzzleAnchor, tempVectorA);
+  tempVectorA.y += BULLET_MUZZLE_VERTICAL_OFFSET;
   camera.getWorldDirection(tempVectorB);
   aimRaycaster.set(camera.position, tempVectorB);
   aimRaycaster.far = AIM_DISTANCE;
@@ -292,8 +295,11 @@ export function tryFire(
 
   const aimIntersections = aimRaycaster.intersectObjects(worldMeshes, false);
   if (aimIntersections.length > 0 && aimIntersections[0].distance < closestAimDistance) {
-    tempVectorC.copy(aimIntersections[0].point);
-    hasAimTarget = true;
+    const worldAimDistanceFromMuzzle = aimIntersections[0].point.distanceTo(tempVectorA);
+    if (worldAimDistanceFromMuzzle >= MIN_WORLD_AIM_DISTANCE_FROM_MUZZLE) {
+      tempVectorC.copy(aimIntersections[0].point);
+      hasAimTarget = true;
+    }
   }
 
   if (!hasAimTarget) {

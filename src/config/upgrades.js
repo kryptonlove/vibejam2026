@@ -70,24 +70,6 @@ export const UPGRADES = {
     stat: 'reloadSpeed',
     value: 0.2,
     icon: null
-  },
-  shockwaveUnlock: {
-    id: 'shockwaveUnlock',
-    title: 'Shockwave',
-    description: 'Unlock a green radial blast on E.',
-    type: 'ability',
-    stat: 'shockwave',
-    value: 1,
-    icon: null
-  },
-  shockwaveCooldownPlus: {
-    id: 'shockwaveCooldownPlus',
-    title: 'Static Core',
-    description: 'Reduce shockwave cooldown by 20%.',
-    type: 'ability',
-    stat: 'shockwaveCooldown',
-    value: -0.2,
-    icon: null
   }
 };
 

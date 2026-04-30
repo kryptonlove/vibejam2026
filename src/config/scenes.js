@@ -1,6 +1,7 @@
 import {
   collisionWorldUrl,
   enemyTestWorldUrl,
+  levelFourWorldUrl,
   levelOneWorldUrl,
   levelThreeWorldUrl,
   levelTwoWorldUrl
@@ -73,6 +74,15 @@ export const WORLD_SCENES = {
     useGlowCubes: true,
     glowCubeCount: 4,
     spawnPosition: [0, 0.55, 0]
+  },
+  levelFour: {
+    label: 'Level 4',
+    url: levelFourWorldUrl,
+    meta: 'Draco-compressed multi-floor arena for the final lava fight',
+    useGlowCubes: true,
+    glowCubeCount: 5,
+    spawnPosition: [-0.194, 0.761, -19.114],
+    spawnLookAt: [0, 0.761, 0]
   },
   demo: {
     label: 'Demo',

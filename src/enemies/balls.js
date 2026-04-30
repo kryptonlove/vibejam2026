@@ -24,6 +24,7 @@ function createSpikedEnemyInstance(scene, index, targetDiameter, maxHp) {
     enemyKey: 'spikedBall',
     config: null,
     attackTimer: Math.random() * 0.5,
+    dodgeTimer: 0,
     hitCooldown: 0,
     healthHudTimer: 0
   };
@@ -45,6 +46,7 @@ export function hideSpikedEnemies(spikedEnemies) {
     enemyInstance.root.visible = false;
     enemyInstance.healthHudTimer = 0;
     enemyInstance.velocity.set(0, 0, 0);
+    enemyInstance.dodgeTimer = 0;
   }
 
   return null;
@@ -197,6 +199,7 @@ export function resetSpikedEnemies(state) {
       enemyInstance.root.visible = false;
       enemyInstance.healthHudTimer = 0;
       enemyInstance.velocity.set(0, 0, 0);
+      enemyInstance.dodgeTimer = 0;
       enemyInstance.collider.center.set(0, -100 - enemyInstance.id * 4, 0);
       continue;
     }
@@ -267,6 +270,7 @@ export function resetSpikedEnemies(state) {
     enemyInstance.hp = enemyInstance.maxHp;
     enemyInstance.grounded = false;
     enemyInstance.hitCooldown = 0;
+    enemyInstance.dodgeTimer = 0;
     enemyInstance.attackTimer = Math.random() * 0.5;
     enemyInstance.healthHudTimer = 0;
     enemyInstance.visualRoot.rotation.set(
@@ -303,7 +307,7 @@ function killSpikedEnemy(state, enemyInstance, position = enemyInstance.collider
   }
 
   if (state.spikedEnemies.every((candidate) => !candidate.alive)) {
-    state.completeLevel();
+    state.completeLevel(position.clone());
   }
 
   return activeEnemyHudTarget;
@@ -329,6 +333,21 @@ export function damageSpikedEnemy(state, enemyInstance, impactPoint, damage = 1)
   enemyInstance.velocity.addScaledVector(state.tempVectorA, 2.7);
   enemyInstance.velocity.y = Math.max(enemyInstance.velocity.y, 2.2);
 
+  const enemyConfig = getEnemyConfig(enemyInstance);
+  const enemyType = enemyConfig.type ?? enemyInstance.type ?? 'spiked';
+  if (enemyType === 'fire') {
+    state.tempVectorB.copy(state.tempVectorA);
+    state.tempVectorC.set(-state.tempVectorB.z, 0, state.tempVectorB.x).normalize();
+    if (Math.random() < 0.5) {
+      state.tempVectorC.multiplyScalar(-1);
+    }
+
+    enemyInstance.velocity.addScaledVector(state.tempVectorB, 3.4);
+    enemyInstance.velocity.addScaledVector(state.tempVectorC, 5.2);
+    enemyInstance.velocity.y = 0;
+    enemyInstance.dodgeTimer = 0.42;
+  }
+
   if (enemyInstance.hp <= 0) {
     activeEnemyHudTarget = killSpikedEnemy(state, enemyInstance, enemyInstance.collider.center.clone());
   }
@@ -340,6 +359,7 @@ function updateSpikedEnemy(state, enemyInstance, deltaTime) {
   enemyInstance.healthHudTimer = Math.max(0, enemyInstance.healthHudTimer - deltaTime);
   enemyInstance.hitCooldown = Math.max(0, enemyInstance.hitCooldown - deltaTime);
   enemyInstance.attackTimer = Math.max(0, enemyInstance.attackTimer - deltaTime);
+  enemyInstance.dodgeTimer = Math.max(0, enemyInstance.dodgeTimer - deltaTime);
 
   if (!enemyInstance.alive || state.gameState !== 'playing') {
     return state.activeEnemyHudTarget;
@@ -384,9 +404,11 @@ function updateSpikedEnemy(state, enemyInstance, deltaTime) {
 
   state.movementVelocity.set(enemyInstance.velocity.x, 0, enemyInstance.velocity.z);
   state.tempVectorD.copy(state.tempVectorC).multiplyScalar(targetSpeed);
+  const steeringAcceleration =
+    enemyInstance.dodgeTimer > 0 ? state.spikedEnemyAcceleration * 0.24 : state.spikedEnemyAcceleration;
   state.movementVelocity.lerp(
     state.tempVectorD,
-    1 - Math.exp(-state.spikedEnemyAcceleration * deltaTime)
+    1 - Math.exp(-steeringAcceleration * deltaTime)
   );
   enemyInstance.velocity.x = state.movementVelocity.x;
   enemyInstance.velocity.z = state.movementVelocity.z;
@@ -450,21 +472,30 @@ function updateSpikedEnemy(state, enemyInstance, deltaTime) {
   }
 
   if (detectedPlayer && enemyType === 'fire' && enemyInstance.attackTimer <= 0) {
-    enemyInstance.attackTimer = enemyConfig.fireRate ?? 1.6;
-    const projectileCount = enemyConfig.projectileCount ?? 2;
+    enemyInstance.attackTimer = enemyConfig.fireRate ?? 0.8;
+    const projectileCount = enemyConfig.projectileCount ?? 1;
     const projectileSpread = enemyConfig.projectileSpread ?? 0.16;
     state.tempVectorD.copy(state.playerCollider.start).lerp(state.playerCollider.end, 0.56);
-    state.tempVectorA.subVectors(state.tempVectorD, enemyInstance.collider.center).normalize();
 
     for (let i = 0; i < projectileCount; i += 1) {
-      const spreadOffset = projectileCount <= 1 ? 0 : (i - (projectileCount - 1) * 0.5) * projectileSpread;
-      state.tempVectorB.copy(state.tempVectorA).applyAxisAngle(state.up, spreadOffset).normalize();
+      let projectileTarget = state.tempVectorD;
+      let projectileDirection = null;
+
+      if (projectileCount > 1) {
+        const spreadOffset = (i - (projectileCount - 1) * 0.5) * projectileSpread;
+        state.tempVectorA.subVectors(state.tempVectorD, enemyInstance.collider.center).normalize();
+        state.tempVectorB.copy(state.tempVectorA).applyAxisAngle(state.up, spreadOffset).normalize();
+        projectileTarget = null;
+        projectileDirection = state.tempVectorB;
+      }
+
       state.spawnEnemyProjectile?.({
         type: 'fire',
         position: enemyInstance.collider.center,
-        direction: state.tempVectorB,
+        target: projectileTarget,
+        direction: projectileDirection,
         damage: enemyConfig.projectileDamage ?? 1,
-        speed: enemyConfig.projectileSpeed ?? 8.5,
+        speed: enemyConfig.projectileSpeed ?? 14,
         radius: enemyConfig.projectileRadius ?? 0.18
       });
     }

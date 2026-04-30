@@ -77,19 +77,19 @@ export function controls(state, deltaTime) {
   const airControl = state.playerOnFloor ? 1 : 0.35;
   const speedDelta = deltaTime * acceleration * airControl;
 
-  if (state.keyStates.KeyW) {
+  if (state.keyStates.KeyW || state.keyStates.ArrowUp) {
     state.playerVelocity.add(getForwardVector(state).multiplyScalar(speedDelta));
   }
 
-  if (state.keyStates.KeyS) {
+  if (state.keyStates.KeyS || state.keyStates.ArrowDown) {
     state.playerVelocity.add(getForwardVector(state).multiplyScalar(-speedDelta));
   }
 
-  if (state.keyStates.KeyA) {
+  if (state.keyStates.KeyA || state.keyStates.ArrowLeft) {
     state.playerVelocity.add(getSideVector(state).multiplyScalar(-speedDelta));
   }
 
-  if (state.keyStates.KeyD) {
+  if (state.keyStates.KeyD || state.keyStates.ArrowRight) {
     state.playerVelocity.add(getSideVector(state).multiplyScalar(speedDelta));
   }
 
