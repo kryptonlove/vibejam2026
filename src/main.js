@@ -7,6 +7,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import {
   blockMossXsUrl,
+  blockNormalXlUrl,
   bricksSideTextureUrl,
   bricksTopTextureUrl,
   decorationUiUrl,
@@ -14,6 +15,7 @@ import {
   enemyHitSfxUrl,
   gateUrl,
   groundMossMdUrl,
+  groundMossXlUrl,
   groundMossXsUrl,
   heartUiUrl,
   lineUiUrl,
@@ -21,6 +23,8 @@ import {
   menuMusicUrl,
   mossXlUrl,
   pauseUiUrl,
+  pillarRoundCutUrl,
+  pillarRoundUrl,
   pillarSquareUrl,
   pistolEmptySfxUrl,
   pistolSfxUrl,
@@ -31,7 +35,9 @@ import {
   playerTextureUrl as characterTextureUrl,
   playerUrl as characterUrl,
   roundCornersMusicUrl,
+  skullUrl,
   skullCrackedUrl,
+  stairsMdUrl,
   stairsXlUrl,
   teleportOpenSfxUrl,
   teleportationSfxUrl,
@@ -157,6 +163,7 @@ import {
   setupMenuSceneEffects as setupMenuSceneEffectsWorld
 } from './world/menu-scene.js';
 import { createIntroSceneWorld as createIntroSceneWorldWorld } from './world/intro-scene.js';
+import { createLevelFiveSceneWorld, createLevelSixSceneWorld } from './world/level-five-scene.js';
 import {
   addGlowCubesToWorld as addGlowCubesToWorldWorld,
   addMenuSceneGlowCubes as addMenuSceneGlowCubesWorld,
@@ -387,6 +394,10 @@ function shouldShowMenuScenePlayerControls(sceneKey = activeSceneKey) {
 }
 
 function shouldHideGameplayAvatar(sceneKey = activeSceneKey) {
+  if (gameState === 'upgrading') {
+    return true;
+  }
+
   return WORLD_SCENES[sceneKey]?.hideGameplayAvatar === true;
 }
 
@@ -1580,6 +1591,11 @@ let audioEnabled = false;
 let audioInteractionUnlocked = false;
 
 const BRICK_TILE_WORLD_SIZE = 5.4;
+const SKY_STAR_SCENE_KEYS = new Set(['levelOne', 'levelTwo', 'levelThree', 'levelFour', 'levelFive', 'levelSix']);
+const SKY_STAR_COUNT = 64;
+const SKY_STAR_MIN_HEIGHT = 16;
+const SKY_STAR_MAX_HEIGHT = 48;
+const SKY_STAR_BASE_OPACITY = 0.28;
 const loaderState = {
   total: 0,
   loaded: 0
@@ -1744,6 +1760,7 @@ let spikedEnemyVisualRadius = SPIKED_ENEMY_TARGET_DIAMETER * 0.5;
 let activeEnemyHudTarget = null;
 const explosionEffects = [];
 const enemyProjectiles = [];
+let skyStars = null;
 let portalGroup = null;
 let portalMaterial = null;
 const vibeJamPortalObjects = [];
@@ -2135,10 +2152,80 @@ function clearGlowCubes() {
   clearGlowCubesWorld({ glowCubes, scene });
 }
 
+function clearSkyStars() {
+  if (!skyStars) {
+    return;
+  }
+
+  scene.remove(skyStars);
+  skyStars.geometry?.dispose?.();
+  skyStars.material?.dispose?.();
+  skyStars = null;
+}
+
+function addSkyStarsForScene(sceneKey) {
+  clearSkyStars();
+
+  if (!SKY_STAR_SCENE_KEYS.has(sceneKey) || worldBounds.isEmpty()) {
+    return;
+  }
+
+  const center = worldBounds.getCenter(tempVectorA);
+  const size = worldBounds.getSize(tempVectorB);
+  const radius = Math.max(size.x, size.z, 48) * 0.75;
+  const positions = new Float32Array(SKY_STAR_COUNT * 3);
+  const colors = new Float32Array(SKY_STAR_COUNT * 3);
+
+  for (let index = 0; index < SKY_STAR_COUNT; index += 1) {
+    const offset = index * 3;
+    const angle = Math.random() * Math.PI * 2;
+    const distance = THREE.MathUtils.randFloat(radius * 0.45, radius * 1.25);
+    const brightness = THREE.MathUtils.randFloat(0.35, 0.85);
+
+    positions[offset] = center.x + Math.cos(angle) * distance;
+    positions[offset + 1] = worldBounds.max.y + THREE.MathUtils.randFloat(SKY_STAR_MIN_HEIGHT, SKY_STAR_MAX_HEIGHT);
+    positions[offset + 2] = center.z + Math.sin(angle) * distance;
+
+    colors[offset] = brightness * 0.78;
+    colors[offset + 1] = brightness * 0.9;
+    colors[offset + 2] = brightness;
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+  const material = new THREE.PointsMaterial({
+    size: 1.35,
+    sizeAttenuation: false,
+    vertexColors: true,
+    transparent: true,
+    opacity: SKY_STAR_BASE_OPACITY,
+    depthWrite: false,
+    fog: false,
+    blending: THREE.AdditiveBlending
+  });
+
+  skyStars = new THREE.Points(geometry, material);
+  skyStars.name = 'SubtleSkyStars';
+  skyStars.frustumCulled = false;
+  scene.add(skyStars);
+}
+
+function updateSkyStars(time) {
+  if (!skyStars) {
+    return;
+  }
+
+  skyStars.rotation.y += 0.00008;
+  skyStars.material.opacity = SKY_STAR_BASE_OPACITY + Math.sin(time * 0.45) * 0.035;
+}
+
 function clearWorldScene() {
   clearPortal();
   clearVibeJamPortals();
   clearEnemyProjectiles();
+  clearSkyStars();
   const nextState = clearWorldSceneWorld({
     scene,
     currentWorldRoot,
@@ -3830,10 +3917,11 @@ function setCharacterAction(name, { fade = 0.16, force = false, loopOnce = false
 }
 
 function updateCharacterAnimation(deltaTime) {
+  const pauseCharacterAnimation = gameState === 'upgrading';
   const nextState = updateCharacterAnimationPlayer(
     {
       characterMixer,
-      gameState: gameState === 'portal' ? 'playing' : gameState,
+      gameState: pauseCharacterAnimation ? 'paused' : gameState === 'portal' ? 'playing' : gameState,
       shootActionTimer,
       keyStates,
       playerOnFloor,
@@ -3841,7 +3929,7 @@ function updateCharacterAnimation(deltaTime) {
       activeCharacterAction,
       activeCharacterActionName
     },
-    deltaTime
+    pauseCharacterAnimation ? 0 : deltaTime
   );
 
   shootActionTimer = nextState.shootActionTimer;
@@ -5249,6 +5337,17 @@ function applyLevelFourBrickTextures(root) {
   });
 }
 
+function applyLevelFiveBrickTextures(root) {
+  applyBrickTextures(root, bricksTopTexture, bricksSideTexture, {
+    extraTopMaterialNames: ['bricktop'],
+    generateUvForMaterialNames: ['bricktop', 'brickside'],
+    generatedUvTileSize: BRICK_TILE_WORLD_SIZE,
+    forceGenerateUv: false,
+    topMapOptions: { repeat: [1, 1] },
+    sideMapOptions: { repeat: [1, 1] }
+  });
+}
+
 function isBrickPlatformObject(object) {
   const objectName = object.name?.toLowerCase() ?? '';
   const geometryName = object.geometry?.name?.toLowerCase() ?? '';
@@ -5318,9 +5417,12 @@ function addWorldScene(root, collisionRoot = root) {
     applyLevelThreeBrickTextures(root);
   } else if (activeSceneKey === 'levelFour') {
     applyLevelFourBrickTextures(root);
+  } else if (activeSceneKey === 'levelFive') {
+    applyLevelFiveBrickTextures(root);
   }
   currentCollisionRoot = nextState.currentCollisionRoot;
   worldFloor = nextState.worldFloor;
+  addSkyStarsForScene(activeSceneKey);
 }
 
 function addCharacterModel(fbx) {
@@ -5461,7 +5563,7 @@ function applyWorldScene(sceneKey, { restartPlayer = true, startPlaying = true }
 
 async function init() {
   try {
-    loaderState.total = 29 + AUDIO_PRELOAD_URLS.length + UI_IMAGE_PRELOAD_URLS.length;
+    loaderState.total = 35 + AUDIO_PRELOAD_URLS.length + UI_IMAGE_PRELOAD_URLS.length;
     loaderState.loaded = 0;
     showLoaderScreen(
       'Loading Assets',
@@ -5485,12 +5587,18 @@ async function init() {
       levelThreeWorldGltf,
       levelFourWorldGltf,
       blockMossXsGltf,
+      blockNormalXlGltf,
       groundMossXsGltf,
       groundMossMdGltf,
+      groundMossXlGltf,
       gateGltf,
       mossXlGltf,
+      pillarRoundGltf,
+      pillarRoundCutGltf,
       pillarSquareGltf,
+      skullGltf,
       skullCrackedGltf,
+      stairsMdGltf,
       stairsXlGltf,
       vaseGltf,
       wallLightGltf,
@@ -5515,12 +5623,18 @@ async function init() {
       loadTracked('Level 3 scene', () => loadGLTF(WORLD_SCENES.levelThree.url)),
       loadTracked('Level 4 scene', () => loadGLTF(WORLD_SCENES.levelFour.url)),
       loadTracked('Block moss XS', () => loadGLTF(blockMossXsUrl)),
+      loadTracked('Block normal XL', () => loadGLTF(blockNormalXlUrl)),
       loadTracked('Ground moss XS', () => loadGLTF(groundMossXsUrl)),
       loadTracked('Ground moss MD', () => loadGLTF(groundMossMdUrl)),
+      loadTracked('Ground moss XL', () => loadGLTF(groundMossXlUrl)),
       loadTracked('Gate', () => loadGLTF(gateUrl)),
       loadTracked('Moss XL', () => loadGLTF(mossXlUrl)),
+      loadTracked('Round pillar', () => loadGLTF(pillarRoundUrl)),
+      loadTracked('Cut round pillar', () => loadGLTF(pillarRoundCutUrl)),
       loadTracked('Square pillar', () => loadGLTF(pillarSquareUrl)),
+      loadTracked('Skull', () => loadGLTF(skullUrl)),
       loadTracked('Cracked skull', () => loadGLTF(skullCrackedUrl)),
+      loadTracked('Stairs MD', () => loadGLTF(stairsMdUrl)),
       loadTracked('Stairs XL', () => loadGLTF(stairsXlUrl)),
       loadTracked('Vase', () => loadGLTF(vaseUrl)),
       loadTracked('Wall light', () => loadGLTF(wallLightUrl)),
@@ -5568,6 +5682,38 @@ async function init() {
         vase: vaseGltf.scene,
         wallLight: wallLightGltf.scene,
         wallNormalXl: wallNormalXlGltf.scene
+      });
+    worldSceneFactories.levelFive = () =>
+      createLevelFiveSceneWorld({
+        assetTemplates: {
+          blockNormalXl: blockNormalXlGltf.scene,
+          groundMossMd: groundMossMdGltf.scene,
+          groundMossXl: groundMossXlGltf.scene,
+          groundMossXs: groundMossXsGltf.scene,
+          pillarRound: pillarRoundGltf.scene,
+          pillarRoundCut: pillarRoundCutGltf.scene,
+          skull: skullGltf.scene,
+          skullCracked: skullCrackedGltf.scene,
+          stairsMd: stairsMdGltf.scene
+        },
+        bricksTopTexture,
+        bricksSideTexture
+      });
+    worldSceneFactories.levelSix = () =>
+      createLevelSixSceneWorld({
+        assetTemplates: {
+          blockNormalXl: blockNormalXlGltf.scene,
+          groundMossMd: groundMossMdGltf.scene,
+          groundMossXl: groundMossXlGltf.scene,
+          groundMossXs: groundMossXsGltf.scene,
+          pillarRound: pillarRoundGltf.scene,
+          pillarRoundCut: pillarRoundCutGltf.scene,
+          skull: skullGltf.scene,
+          skullCracked: skullCrackedGltf.scene,
+          stairsMd: stairsMdGltf.scene
+        },
+        bricksTopTexture,
+        bricksSideTexture
       });
     enemyTemplates.spikedBall = spikedBallGltf.scene;
     enemyTemplates.fireSun = fireSunGltf.scene;
@@ -5677,6 +5823,7 @@ function animate() {
   updateVibeJamPortals(simulationDelta);
   updateMenuSceneEffects(simulationDelta, simulationTime);
   updateGlowCubes(simulationTime);
+  updateSkyStars(simulationTime);
   updateCamera(simulationDelta);
   updatePlayerVisual();
   updateHud();

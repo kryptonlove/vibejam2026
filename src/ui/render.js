@@ -66,12 +66,7 @@ export function syncScreenVisibility(ui, { startScreenOpen, menuSceneViewOpen, s
     startScreenOpen ||
     menuSceneViewOpen ||
     (gameState !== 'playing' && gameState !== 'paused' && gameState !== 'portal');
-  ui.sceneToggleButton.hidden =
-    !sceneReady ||
-    pauseMenuOpen ||
-    startScreenOpen ||
-    menuSceneViewOpen ||
-    (gameState !== 'playing' && gameState !== 'portal');
+  ui.sceneToggleButton.hidden = true;
 }
 
 function formatControlValue(value) {

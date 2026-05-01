@@ -84,6 +84,22 @@ export const WORLD_SCENES = {
     spawnPosition: [-0.194, 0.761, -19.114],
     spawnLookAt: [0, 0.761, 0]
   },
+  levelFive: {
+    label: 'Level 5',
+    meta: 'Procedural modular ruins arena for the fifth level blockout',
+    useGlowCubes: true,
+    glowCubeCount: 5,
+    spawnNodeName: 'PlayerSpawn',
+    spawnLookAt: [29, 0.55, 0]
+  },
+  levelSix: {
+    label: 'Level 6',
+    meta: 'Procedural three-floor modular ruins arena for the final mixed fight',
+    useGlowCubes: true,
+    glowCubeCount: 6,
+    spawnNodeName: 'PlayerSpawn',
+    spawnLookAt: [29, 0.55, 0]
+  },
   demo: {
     label: 'Demo',
     url: collisionWorldUrl,

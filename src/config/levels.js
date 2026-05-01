@@ -20,12 +20,6 @@ export const ENEMY_TEMPLATE_URLS = {
   crystalBallLightning: crystalBallLightningUrl
 };
 
-const COMMON_ARENA_POSITIONS = [
-  [-4.8, 0, -4.2],
-  [4.8, 0, -3.8],
-  [0, 0, 5.2]
-];
-
 const LEVEL_ONE_SPIKED_POSITIONS = [
   [-3.5, 2.57, 30],
   [3.5, 2.57, 34]
@@ -202,22 +196,83 @@ const LEVEL_FOUR_ENEMY_CONFIGS = [
   }
 ];
 
-function createEnemyConfigs(type, enemyKey, overrides = {}) {
-  return COMMON_ARENA_POSITIONS.map((position, index) => ({
-    id: `${type}-${index + 1}`,
-    type,
-    enemyKey,
+function createSpikedConfig(id, position, overrides = {}) {
+  return {
+    id,
+    type: 'spiked',
+    enemyKey: 'spikedBall',
     position,
-    hp: overrides.hp ?? 100,
+    hp: overrides.hp ?? 110,
     damage: overrides.damage ?? 1,
-    detectionRadius: overrides.detectionRadius ?? 10,
-    speed: overrides.speed ?? 2.2,
-    attackSpeed: overrides.attackSpeed ?? 3.2,
-    projectileDamage: overrides.projectileDamage ?? 1,
-    fireRate: overrides.fireRate ?? 1.6,
-    lavaBurstInterval: overrides.lavaBurstInterval ?? 2.1
-  }));
+    detectionRadius: overrides.detectionRadius ?? 12,
+    speed: overrides.speed ?? 2.25,
+    attackSpeed: overrides.attackSpeed ?? 3.5,
+    preferHighest: overrides.preferHighest
+  };
 }
+
+function createFireConfig(id, position, overrides = {}) {
+  return {
+    id,
+    type: 'fire',
+    enemyKey: 'fireSun',
+    position,
+    hp: overrides.hp ?? 110,
+    damage: overrides.damage ?? 1,
+    projectileDamage: overrides.projectileDamage ?? 1,
+    detectionRadius: overrides.detectionRadius ?? 20,
+    speed: overrides.speed ?? 2,
+    attackSpeed: overrides.attackSpeed ?? 2.8,
+    fireRate: overrides.fireRate ?? 0.68,
+    projectileCount: 1,
+    projectileSpeed: overrides.projectileSpeed ?? 15,
+    preferHighest: overrides.preferHighest
+  };
+}
+
+function createLavaConfig(id, position, overrides = {}) {
+  return {
+    id,
+    type: 'lava',
+    enemyKey: 'lavaBall',
+    position,
+    hp: overrides.hp ?? 130,
+    damage: overrides.damage ?? 1,
+    projectileDamage: overrides.projectileDamage ?? 1,
+    detectionRadius: overrides.detectionRadius ?? 13,
+    speed: overrides.speed ?? 2.12,
+    attackSpeed: overrides.attackSpeed ?? 3.25,
+    lavaBurstInterval: overrides.lavaBurstInterval ?? 1.95,
+    projectileRadius: overrides.projectileRadius ?? 0.64,
+    projectileLifetime: overrides.projectileLifetime ?? 12,
+    preferHighest: overrides.preferHighest
+  };
+}
+
+const LEVEL_FIVE_ENEMY_CONFIGS = [
+  createSpikedConfig('p1-spiked-1', [-6.4, 0.08, -6.2]),
+  createSpikedConfig('p1-spiked-2', [6.2, 0.08, 6.5]),
+  createFireConfig('p2-fire-1', [29, 0.08, 5.2]),
+  createSpikedConfig('p2-spiked-1', [35, 0.08, -5.8]),
+  createSpikedConfig('p3-spiked-1', [23.5, 4.08, 27], { preferHighest: true }),
+  createLavaConfig('p3-lava-1', [35.2, 4.08, 31.2], { preferHighest: true }),
+  createFireConfig('p4-fire-1', [-5.8, 4.08, 26.5], { preferHighest: true }),
+  createLavaConfig('p4-lava-1', [6.4, 4.08, 31.8], { preferHighest: true })
+];
+
+const LEVEL_SIX_ENEMY_CONFIGS = [
+  createSpikedConfig('f1-p1-spiked-1', [-6.4, 0.08, -6.2], { hp: 115 }),
+  createSpikedConfig('f1-p1-spiked-2', [6.2, 0.08, 6.5], { hp: 115 }),
+  createFireConfig('f1-p2-fire-1', [29, 0.08, 5.2], { hp: 115 }),
+  createSpikedConfig('f1-p2-spiked-1', [35, 0.08, -5.8], { hp: 115 }),
+  createSpikedConfig('f2-p3-spiked-1', [23.5, 4.08, 27], { hp: 120, preferHighest: true }),
+  createLavaConfig('f2-p3-lava-1', [35.2, 4.08, 31.2], { hp: 135, preferHighest: true }),
+  createFireConfig('f2-p4-fire-1', [-5.8, 4.08, 26.5], { hp: 120, preferHighest: true }),
+  createLavaConfig('f2-p4-lava-1', [6.4, 4.08, 31.8], { hp: 135, preferHighest: true }),
+  createFireConfig('f3-p5-fire-1', [23.5, 8.08, 53], { hp: 125, preferHighest: true }),
+  createSpikedConfig('f3-p5-spiked-1', [29, 8.08, 59.2], { hp: 125, preferHighest: true }),
+  createLavaConfig('f3-p5-lava-1', [35.2, 8.08, 51.2], { hp: 145, preferHighest: true })
+];
 
 export const LEVEL_CONFIGS = [
   {
@@ -307,46 +362,38 @@ export const LEVEL_CONFIGS = [
   {
     number: 5,
     label: 'Level 5',
-    enemyKey: 'electricBall',
-    enemyLabel: 'Electric Ball',
-    enemyPluralLabel: 'Electric Balls',
+    enemyKey: 'lavaBall',
+    enemyLabel: 'Mixed Roundie',
+    enemyPluralLabel: 'Mixed Roundies',
     cutsceneText: [
       { text: 'Do you know the area of a circle? Right! PI*R*SQUARED!', strong: true }
     ],
-    sceneKey: 'enemyTest',
+    sceneKey: 'levelFive',
+    portalPosition: [0, 4.08, 27],
+    vibeJamPortalPosition: [0, 4.08, 27],
     soundtrack: roundCornersMusicUrl,
-    enemies: createEnemyConfigs('electric', 'electricBall', {
-      hp: 150,
-      damage: 1,
-      detectionRadius: 12,
-      speed: 2.35,
-      attackSpeed: 3.55
-    }),
+    enemies: LEVEL_FIVE_ENEMY_CONFIGS,
     availableUpgrades: ['walkSpeedPlus', 'magazinePlusOne']
   },
   {
     number: 6,
     label: 'Level 6',
-    enemyKey: 'crystalBallLightning',
-    enemyLabel: 'Crystal Ball Lightning',
-    enemyPluralLabel: 'Crystal Ball Lightning Orbs',
+    enemyKey: 'lavaBall',
+    enemyLabel: 'Mixed Roundie',
+    enemyPluralLabel: 'Mixed Roundies',
     cutsceneText: [
       { text: 'The final is here, ' },
       { text: 'Square Dude', tone: 'pink' },
       { text: '.' }
     ],
-    sceneKey: 'enemyTest',
+    sceneKey: 'levelSix',
+    portalPosition: [29, 8.08, 54],
+    vibeJamPortalPosition: [29, 8.08, 54],
     soundtrack: roundCornersMusicUrl,
-    enemies: createEnemyConfigs('crystal', 'crystalBallLightning', {
-      hp: 170,
-      damage: 1,
-      detectionRadius: 12,
-      speed: 2.45,
-      attackSpeed: 3.65
-    }),
+    enemies: LEVEL_SIX_ENEMY_CONFIGS,
     availableUpgrades: ['maxHpPlusOne', 'pistolDamagePlus']
   }
 ];
 
-export const ENEMY_LEVELS = LEVEL_CONFIGS.slice(0, 4);
+export const ENEMY_LEVELS = LEVEL_CONFIGS.slice(0, 6);
 export const DEFAULT_LEVEL_INDEX = 0;

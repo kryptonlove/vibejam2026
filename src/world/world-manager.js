@@ -43,7 +43,9 @@ export function clearWorldScene({
         return;
       }
 
-      child.geometry?.dispose?.();
+      if (child.userData?.disposeGeometry) {
+        child.geometry?.dispose?.();
+      }
 
       if (Array.isArray(child.material)) {
         child.material.forEach((material) => material?.dispose?.());
@@ -64,6 +66,10 @@ export function clearWorldScene({
   currentWorldRoot.traverse((child) => {
     if (!child.isMesh) {
       return;
+    }
+
+    if (child.userData?.disposeGeometry) {
+      child.geometry?.dispose?.();
     }
 
     if (Array.isArray(child.material)) {

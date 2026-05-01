@@ -116,8 +116,9 @@ export function addWorldScene({ scene, renderer, worldMeshes, worldOctree, world
       return;
     }
 
-    child.castShadow = true;
-    child.receiveShadow = true;
+    const invisibleCollisionProxy = child.userData?.invisibleCollisionProxy === true;
+    child.castShadow = !invisibleCollisionProxy && child.userData?.disableShadowCasting !== true;
+    child.receiveShadow = !invisibleCollisionProxy && child.userData?.disableShadowReceiving !== true;
     if (!child.userData?.ignoreWorldCollision) {
       worldMeshes.push(child);
     }
